@@ -86,6 +86,14 @@ class GameScene extends Phaser.Scene {
         this.isLevelWon = false;                   // 是否已經通關
     }
 
+    // 【新增】預載入遊戲素材
+    preload() {
+        // 第一個參數是你給這張圖片取的「代號」，第二個參數是圖片的「相對路徑」
+        // 請確保路徑和大小寫完全對應你的資料夾結構！
+        this.load.image('grass', 'assets/images/Grass.png');
+        this.load.image('dirt', 'assets/images/Dirt.png');
+    }
+
     create() {
         // 這裡放你原本 game.js 裡 create() 函數中的所有程式碼！
         // 包含建立網格、UI、註冊拖拽事件等
@@ -132,7 +140,7 @@ class GameScene extends Phaser.Scene {
         btnFire.on('pointerdown', () => { currentSelectedTower = 'fire'; selectedText.setText('👉 當前: 火塔'); });
 
         // ================= 3. 画网格和高亮路径 =================
-        this.add.grid(400, 300, 800, 600, cellSize, cellSize, 0x000000, 0, 0xffffff, 0.2);
+        // this.add.grid(400, 300, 800, 600, cellSize, cellSize, 0x000000, 0, 0xffffff, 0.2);
 
         path = this.add.path(0, 100);
         path.lineTo(580, 100);
@@ -152,11 +160,25 @@ class GameScene extends Phaser.Scene {
                 let cx = x + 20; 
                 let cy = y + 20; 
                 let isPath = false;
+
+                // judge if the center of this cell is on the path
                 if (cy === 100 && cx <= 580) isPath = true; 
                 else if (cx === 580 && cy >= 100 && cy <= 380) isPath = true; 
                 else if (cy === 380 && cx >= 220 && cx <= 580) isPath = true; 
-                else if (cx === 220 && cy >= 380 && cy <= 600) isPath = true; 
-                if (isPath) pathGraphics.fillRect(x, y, cellSize, cellSize);
+                else if (cx === 220 && cy >= 380 && cy <= 600) isPath = true;
+
+                // if (isPath) pathGraphics.fillRect(x, y, cellSize, cellSize);
+                if (isPath) {
+                    // 如果是路徑，貼上泥土 (dirt)
+                    let dirtTile = this.add.image(cx, cy, 'dirt');
+                    // .setDisplaySize() 是個好用的小魔法，不管你下載的圖片是 64x64 還是多大，
+                    // 它都會強制把圖片縮放成你的 cellSize (40x40)，完美貼合網格！
+                    dirtTile.setDisplaySize(cellSize, cellSize); 
+                } else {
+                    // 如果不是路徑，貼上草地 (grass)
+                    let grassTile = this.add.image(cx, cy, 'grass');
+                    grassTile.setDisplaySize(cellSize, cellSize);
+                }
             }
         }
 
