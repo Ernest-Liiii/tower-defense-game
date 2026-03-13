@@ -5,3 +5,5 @@ const ENEMY_DATA = {
     // 基础远程兵：血量1500 [cite: 69]，伤害100 [cite: 72]
     'ranged': { hp: 1500, speed: 26.6, damage: 100 }  
 };
+
+export { ENEMY_DATA };

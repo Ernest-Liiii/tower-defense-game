@@ -1,78 +1,35 @@
-let path;
-let enemies;    
-let bullets;    
-let towers = [];
-let nextEnemy = 0; 
-const cellSize = 40; // 提取为全局常量，方便使用
+// this file is used to control the main game scene, 
+// including loading assets, creating game objects, and handling game logic
 
-let playerMoney = LEVEL_DATA.level1.initialMoney; // 初始费用：100 [cite: 26]
-let playerLives = LEVEL_DATA.level1.initialLives;  // 生命值：10 [cite: 27]
-let moneyText;         // 用来显示金币的文本对象
-let livesText;         // 用来显示生命的文本对象
+// import nessary helper functions
+import { getEnemyInRange, drawDirectionalRange } from '../utils/towerHelpers.js';
+import { shoot, hitEnemy } from '../utils/combatHelpers.js';
 
-// 记录玩家当前选择要建造的塔，默认选火塔
-let currentSelectedTower = 'fire';
-let isGameOver = false; // 游戏结束标志
+// import the data for levels and towers
+import { LEVEL_DATA } from '../config/level_data.js';
+import { TOWER_DATA } from '../config/tower_data.js';
 
-let isDragging = false;
-let dragStartX = 0;
-let dragStartY = 0;
-let previewTower = null;
-let previewRange = null;
-let currentDragDir = 'up'; // 记录当前选择的方向: up, down, left, right
-
-// ================= 1. 開始介面場景 =================
-class StartScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'StartScene' }); // 設定這個場景的名稱
-    }
-
-    create() {
-        // 設定背景顏色
-        this.cameras.main.setBackgroundColor('#2c3e50');
-
-        // 加入遊戲標題
-        this.add.text(400, 200, '超級塔防遊戲', { 
-            fontSize: '48px', 
-            fill: '#ffffff',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        // 加入「開始遊戲」按鈕
-        let startBtn = this.add.text(400, 350, '▶ 點擊開始', { 
-            fontSize: '32px', 
-            fill: '#00ff00' 
-        }).setOrigin(0.5).setInteractive();
-
-        // 滑鼠懸停特效
-        startBtn.on('pointerover', () => startBtn.setStyle({ fill: '#ffff00' }));
-        startBtn.on('pointerout', () => startBtn.setStyle({ fill: '#00ff00' }));
-
-        // 點擊後跳轉到下一關 (目前我們先直接跳到遊戲場景)
-        startBtn.on('pointerdown', () => {
-            this.scene.start('GameScene'); // 切換到 GameScene
-        });
-    }
-}
-
-// ================= 2. 主遊戲場景 =================
-class GameScene extends Phaser.Scene {
+export class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
     }
 
     // 當場景每次啟動 (或重新開始) 時，都會先執行這裡
     init() {
-        playerMoney = LEVEL_DATA.level1.initialMoney; // 重置金幣
-        playerLives = LEVEL_DATA.level1.initialLives;  // 重置生命值
-        towers = [];        // 清空防禦塔陣列
-        // nextEnemy = 0;      // 重置生怪計時器
-        isGameOver = false; // 解除遊戲結束狀態
+        this.playerMoney = LEVEL_DATA.level1.initialMoney; // 重置金幣
+        this.playerLives = LEVEL_DATA.level1.initialLives;  // 重置生命值
+        this.towers = [];        // 清空防禦塔陣列
+        this.nextEnemy = 0;      // 重置生怪計時器
+        this.isGameOver = false; // 解除遊戲結束狀態
         
         // 如果有殘留的拖曳狀態也一併還原
-        isDragging = false; 
-        previewTower = null;
-        previewRange = null;
+        this.isDragging = false; 
+        this.previewTower = null;
+        this.previewRange = null;
+        this.dragStartX = 0;
+        this.dragStartY = 0;
+        this.currentDragDir = 'up';
+        this.currentSelectedTower = 'fire'; // 默認選中火塔
 
         // 【新增】波次控制變數
         this.currentLevelData = LEVEL_DATA.level1; // 先預設讀取 level1
@@ -95,6 +52,8 @@ class GameScene extends Phaser.Scene {
     }
 
     create() {
+        // 定義網格單元格大小
+        this.cellSize = 40;
         // 這裡放你原本 game.js 裡 create() 函數中的所有程式碼！
         // 包含建立網格、UI、註冊拖拽事件等
         this.add.text(20, 20, '关卡 1：教学关卡', { fontSize: '20px', fill: '#00ff00' });
@@ -110,8 +69,8 @@ class GameScene extends Phaser.Scene {
         this.add.text(820, 20, '控制面板', { fontSize: '24px', fill: '#ffffff', fontStyle: 'bold' });
 
         // 狀態資訊 (X 座標統一移到 820)
-        moneyText = this.add.text(820, 70, '💰 費用: ' + playerMoney, { fontSize: '20px', fill: '#ffd700', fontStyle: 'bold' });
-        livesText = this.add.text(820, 100, '❤️ 生命: ' + playerLives, { fontSize: '20px', fill: '#ff4757', fontStyle: 'bold' });
+        this.moneyText = this.add.text(820, 70, '💰 費用: ' + this.playerMoney, { fontSize: '20px', fill: '#ffd700', fontStyle: 'bold' });
+        this.livesText = this.add.text(820, 100, '❤️ 生命: ' + this.playerLives, { fontSize: '20px', fill: '#ff4757', fontStyle: 'bold' });
 
         // 分隔線
         this.add.rectangle(900, 140, 160, 2, 0x7f8fa6);
@@ -122,7 +81,7 @@ class GameScene extends Phaser.Scene {
         let btnFire = this.add.text(820, 240, '🔴 火塔 ($100)', { fontSize: '18px', fill: '#ff6b6b' }).setInteractive();
 
         // 顯示當前選中的塔
-        let selectedText = this.add.text(820, 300, '👉 當前: 火塔', { fontSize: '18px', fill: '#1dd1a1', fontStyle: 'bold' });
+        this.selectedText = this.add.text(820, 300, '👉 當前: 火塔', { fontSize: '18px', fill: '#1dd1a1', fontStyle: 'bold' });
 
         // 暫停按鈕 (放在右下角)
         let pauseBtn = this.add.text(900, 550, '⏸ 暫停遊戲', { 
@@ -135,28 +94,39 @@ class GameScene extends Phaser.Scene {
             this.scene.launch('PauseScene'); 
         });
 
-        btnGold.on('pointerdown', () => { currentSelectedTower = 'gold'; selectedText.setText('👉 當前: 金塔'); });
-        btnWater.on('pointerdown', () => { currentSelectedTower = 'water'; selectedText.setText('👉 當前: 水塔'); });
-        btnFire.on('pointerdown', () => { currentSelectedTower = 'fire'; selectedText.setText('👉 當前: 火塔'); });
+        // 保存當前場景實例的引用，用於事件回調
+        const scene = this;
+        btnGold.on('pointerdown', () => { 
+            scene.currentSelectedTower = 'gold'; 
+            scene.selectedText.setText('👉 當前: 金塔'); 
+        });
+        btnWater.on('pointerdown', () => { 
+            scene.currentSelectedTower = 'water'; 
+            scene.selectedText.setText('👉 當前: 水塔'); 
+        });
+        btnFire.on('pointerdown', () => { 
+            scene.currentSelectedTower = 'fire'; 
+            scene.selectedText.setText('👉 當前: 火塔'); 
+        });
 
         // ================= 3. 画网格和高亮路径 =================
         // this.add.grid(400, 300, 800, 600, cellSize, cellSize, 0x000000, 0, 0xffffff, 0.2);
 
-        path = this.add.path(0, 100);
-        path.lineTo(580, 100);
-        path.lineTo(580, 380);
-        path.lineTo(220, 380);
-        path.lineTo(220, 600);
+        this.path = this.add.path(0, 100);
+        this.path.lineTo(580, 100);
+        this.path.lineTo(580, 380);
+        this.path.lineTo(220, 380);
+        this.path.lineTo(220, 600);
         
         const graphics = this.add.graphics();
         graphics.lineStyle(2, 0xffffff, 0.5);
-        path.draw(graphics);
+        this.path.draw(graphics);
 
         const pathGraphics = this.add.graphics();
         pathGraphics.fillStyle(0xffffff, 0.15); 
         
-        for (let x = 0; x < 800; x += cellSize) {
-            for (let y = 0; y < 600; y += cellSize) {
+        for (let x = 0; x < 800; x += this.cellSize) {
+            for (let y = 0; y < 600; y += this.cellSize) {
                 let cx = x + 20; 
                 let cy = y + 20; 
                 let isPath = false;
@@ -173,11 +143,11 @@ class GameScene extends Phaser.Scene {
                     let dirtTile = this.add.image(cx, cy, 'dirt');
                     // .setDisplaySize() 是個好用的小魔法，不管你下載的圖片是 64x64 還是多大，
                     // 它都會強制把圖片縮放成你的 cellSize (40x40)，完美貼合網格！
-                    dirtTile.setDisplaySize(cellSize, cellSize); 
+                    dirtTile.setDisplaySize(this.cellSize, this.cellSize); 
                 } else {
                     // 如果不是路徑，貼上草地 (grass)
                     let grassTile = this.add.image(cx, cy, 'grass');
-                    grassTile.setDisplaySize(cellSize, cellSize);
+                    grassTile.setDisplaySize(this.cellSize, this.cellSize);
                 }
             }
         }
@@ -199,25 +169,32 @@ class GameScene extends Phaser.Scene {
         texGraphics.generateTexture('boilingBulletTexture', 12, 12);
         texGraphics.clear();
 
-        enemies = this.physics.add.group(); // 初始化敌人组
-        bullets = this.physics.add.group(); // 初始化子弹组
+        this.enemies = this.physics.add.group(); // 初始化敌人组
+        this.bullets = this.physics.add.group(); // 初始化子弹组
 
         // 重新绑定碰撞检测
-        this.physics.add.overlap(bullets, enemies, hitEnemy, null, this);
+        this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => {
+            // 注意：这里需要传入当前场景的引用
+            const moneyData = { value: this.playerMoney };
+            hitEnemy(this, bullet, enemy, moneyData, this.moneyText);
+
+            // update the moneyData in the GameScene
+            this.playerMoney = moneyData.value;
+        }, null, this);
 
         // ================= 4. 全新拖拽建造逻辑 =================
         
         // 阶段一：按下鼠标 (生成预览塔，准备拖拽)
         this.input.on('pointerdown', (pointer, gameObjects) => {
-            if (isGameOver || this.isLevelWon) return;
+            if (this.isGameOver || this.isLevelWon) return;
 
             if (gameObjects.length > 0) return;
             // if (pointer.x < 160 && pointer.y < 180) return; // 点在 UI 上不触发
 
-            const gridX = Math.floor(pointer.x / cellSize) * cellSize;
-            const gridY = Math.floor(pointer.y / cellSize) * cellSize;
-            const centerX = gridX + cellSize / 2;
-            const centerY = gridY + cellSize / 2;
+            const gridX = Math.floor(pointer.x / this.cellSize) * this.cellSize;
+            const gridY = Math.floor(pointer.y / this.cellSize) * this.cellSize;
+            const centerX = gridX + this.cellSize / 2;
+            const centerY = gridY + this.cellSize / 2;
 
             // 路径与防重叠检测
             let isOnPath = false;
@@ -228,88 +205,88 @@ class GameScene extends Phaser.Scene {
             if(isOnPath) return; 
 
             let canBuild = true;
-            towers.forEach(t => { if(t.x === centerX && t.y === centerY) canBuild = false; });
+            this.towers.forEach(t => { if(t.x === centerX && t.y === centerY) canBuild = false; });
             if(!canBuild) return;
 
-            let towerConfig = TOWER_DATA[currentSelectedTower];
-            if (playerMoney < towerConfig.cost) {
+            let towerConfig = TOWER_DATA[this.currentSelectedTower];
+            if (this.playerMoney < towerConfig.cost) {
                 let warning = this.add.text(pointer.x, pointer.y - 20, '费用不足!', { fill: '#ff0000' });
                 this.time.delayedCall(1000, () => warning.destroy());
                 return;
             }
 
             // 准备开始拖拽
-            isDragging = true;
-            dragStartX = pointer.x;
-            dragStartY = pointer.y;
-            currentDragDir = 'up'; // 默认朝上
+            this.isDragging = true;
+            this.dragStartX = pointer.x;
+            this.dragStartY = pointer.y;
+            this.currentDragDir = 'up'; // 默认朝上
 
             // 创建半透明的“预览塔”
-            if (currentSelectedTower === 'fire') {
+            if (this.currentSelectedTower === 'fire') {
                 // 火塔：画一个指向上方的红色三角形
-                previewTower = this.add.triangle(centerX, centerY, 0, 36, 18, 0, 36, 36, towerConfig.color);
+                this.previewTower = this.add.triangle(centerX, centerY, 0, 36, 18, 0, 36, 36, towerConfig.color);
             } else {
-                previewTower = this.add.rectangle(centerX, centerY, 36, 36, towerConfig.color);
+                this.previewTower = this.add.rectangle(centerX, centerY, 36, 36, towerConfig.color);
             }
-            previewTower.alpha = 0.5; // 半透明预览
-            previewRange = this.add.graphics();
-            drawDirectionalRange(previewRange, centerX, centerY, currentDragDir, currentSelectedTower);
+            this.previewTower.alpha = 0.5; // 半透明预览
+            this.previewRange = this.add.graphics();
+            drawDirectionalRange(this.previewRange, centerX, centerY, this.currentDragDir, this.currentSelectedTower);
         });
 
         // 阶段二：拖动鼠标 (改变方向)
         this.input.on('pointermove', (pointer) => {
-            if (!isDragging || !previewTower) return;
+            if (!this.isDragging || !this.previewTower) return;
 
             // 计算鼠标滑动的偏移量
-            let dx = pointer.x - dragStartX;
-            let dy = pointer.y - dragStartY;
+            let dx = pointer.x - this.dragStartX;
+            let dy = pointer.y - this.dragStartY;
 
             // 滑动超过 10 像素才触发转向（防手抖）
             if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
                 if (Math.abs(dx) > Math.abs(dy)) {
-                    currentDragDir = dx > 0 ? 'right' : 'left';
+                    this.currentDragDir = dx > 0 ? 'right' : 'left';
                 } else {
-                    currentDragDir = dy > 0 ? 'down' : 'up';
+                    this.currentDragDir = dy > 0 ? 'down' : 'up';
                 }
             }
 
             // 旋转预览塔
-            if (currentSelectedTower === 'fire') {
-                if (currentDragDir === 'up') previewTower.angle = 0;
-                else if (currentDragDir === 'right') previewTower.angle = 90;
-                else if (currentDragDir === 'down') previewTower.angle = 180;
-                else if (currentDragDir === 'left') previewTower.angle = -90;
+            if (this.currentSelectedTower === 'fire') {
+                if (this.currentDragDir === 'up') this.previewTower.angle = 0;
+                else if (this.currentDragDir === 'right') this.previewTower.angle = 90;
+                else if (this.currentDragDir === 'down') this.previewTower.angle = 180;
+                else if (this.currentDragDir === 'left') this.previewTower.angle = -90;
             }
 
-            drawDirectionalRange(previewRange, previewTower.x, previewTower.y, currentDragDir, currentSelectedTower);
+            drawDirectionalRange(this.previewRange, this.previewTower.x, this.previewTower.y, this.currentDragDir, this.currentSelectedTower);
         });
 
         // 阶段三：松开鼠标 (确认扣费并建造)
         this.input.on('pointerup', (pointer) => {
-            if (!isDragging) return;
-            isDragging = false;
+            if (!this.isDragging) return;
+            this.isDragging = false;
 
-            let towerConfig = TOWER_DATA[currentSelectedTower];
-            let centerX = previewTower.x;
-            let centerY = previewTower.y;
+            let towerConfig = TOWER_DATA[this.currentSelectedTower];
+            let centerX = this.previewTower.x;
+            let centerY = this.previewTower.y;
 
-            playerMoney -= towerConfig.cost;
-            moneyText.setText('费用: ' + playerMoney);
+            this.playerMoney -= towerConfig.cost;
+            this.moneyText.setText('💰 費用: ' + this.playerMoney);
 
             // 生成真正的实体塔
             let tower;
-            if (currentSelectedTower === 'fire') {
+            if (this.currentSelectedTower === 'fire') {
                 tower = this.add.triangle(centerX, centerY, 0, 36, 18, 0, 36, 36, towerConfig.color);
-                tower.angle = previewTower.angle; // 继承拖拽决定的角度
-                tower.direction = currentDragDir; // 记录朝向给索敌算法用
+                tower.angle = this.previewTower.angle; // 继承拖拽决定的角度
+                tower.direction = this.currentDragDir; // 记录朝向给索敌算法用
                 
                 // 画一个极度淡的红色区域作为常驻指示器
-                drawDirectionalRange(this.add.graphics(), centerX, centerY, currentDragDir, 'fire', 0.15);
+                drawDirectionalRange(this.add.graphics(), centerX, centerY, this.currentDragDir, 'fire', 0.15);
             } else {
                 tower = this.add.rectangle(centerX, centerY, 36, 36, towerConfig.color);
             }
 
-            tower.type = currentSelectedTower;
+            tower.type = this.currentSelectedTower;
             tower.hp = towerConfig.hp;
             tower.maxHp = towerConfig.hp;
             tower.damage = towerConfig.damage;
@@ -321,20 +298,20 @@ class GameScene extends Phaser.Scene {
                 this.add.rectangle(centerX, centerY, 200, 200, 0x3498db, 0.15);
             }
 
-            towers.push(tower);
+            this.towers.push(tower);
 
             // 销毁预览对象
-            previewTower.destroy();
-            previewRange.destroy();
-            previewTower = null;
-            previewRange = null;
+            this.previewTower.destroy();
+            this.previewRange.destroy();
+            this.previewTower = null;
+            this.previewRange = null;
         });
     }
 
     update(time, delta) {
         // 這裡放你原本 game.js 裡 update() 函數中的所有程式碼！
         // 包含生成敵人、塔的攻擊邏輯等
-        if (isGameOver) return; // 如果游戏结束了，就不执行后续的更新逻辑{
+        if (this.isGameOver) return; // 如果游戏结束了，就不执行后续的更新逻辑
         // 1. 生成敌人
         // 檢查是否還有尚未出完的波次
         if (this.currentWaveIndex < this.currentLevelData.waves.length) {
@@ -352,12 +329,12 @@ class GameScene extends Phaser.Scene {
                 if (time > this.nextEnemyTime) {
                     
                     // --- 這裡放你原本生怪的代碼 ---
-                    let enemy = this.add.follower(path, 0, 100, 'enemyTexture');
-                    enemies.add(enemy);
+                    let enemy = this.add.follower(this.path, 0, 100, 'enemyTexture');
+                    this.enemies.add(enemy);
                     
                     enemy.hp = 100; 
                     enemy.spawnTime = time; // 记录这个敌人的出生时间戳！
-                    nextEnemy = time + 1500;
+                    this.nextEnemy = time + 1500;
 
                     // 【新增】敌人的攻击属性 (参考设计文档：近战兵)
                     enemy.damage = 150;     // 伤害 150
@@ -373,15 +350,15 @@ class GameScene extends Phaser.Scene {
                             if (enemy && enemy.active) {
                                 enemy.destroy(); 
                                 
-                                playerLives -= 1; 
-                                livesText.setText('生命: ' + playerLives); 
+                                this.playerLives -= 1; 
+                                this.livesText.setText('❤️ 生命: ' + this.playerLives); 
                                 
                                 let dmgText = this.add.text(enemy.x, enemy.y - 20, '-1 生命', { fill: '#ff0000', fontStyle: 'bold' });
                                 this.tweens.add({ targets: dmgText, y: enemy.y - 50, alpha: 0, duration: 1000, onComplete: () => dmgText.destroy() });
 
                                 // 游戏结束判定
-                                if (playerLives <= 0 && !isGameOver) {
-                                    isGameOver = true;    
+                                if (this.playerLives <= 0 && !this.isGameOver) {
+                                    this.isGameOver = true;    
                                     this.physics.pause(); 
                                     this.tweens.pauseAll(); 
 
@@ -408,7 +385,7 @@ class GameScene extends Phaser.Scene {
                         }
                     })
                     
-                    nextEnemy = time + 1500;
+                    this.nextEnemy = time + 1500;
                     // --- 生怪代碼結束 ---
 
                     // 更新計數器與時間
@@ -431,7 +408,7 @@ class GameScene extends Phaser.Scene {
             }
         } else {
             // 所有波次的怪都出完了！檢查場上的怪是不是都被清空了？
-            if (enemies.getLength() === 0 && !isGameOver && !this.isLevelWon) {
+            if (this.enemies.getLength() === 0 && !this.isGameOver && !this.isLevelWon) {
                 this.isLevelWon = true; // 標記為通關
                 
                 // 暫停遊戲，顯示勝利畫面
@@ -455,17 +432,17 @@ class GameScene extends Phaser.Scene {
         }
 
         // 2. 防御塔工作逻辑 (包含攻击与产费)
-        towers.forEach(tower => {
+        this.towers.forEach(tower => {
             
             // ================= 火塔：攻击逻辑 =================
             // 只有攻击范围大于0的塔（火塔）才会索敌开火
             if (tower.type === 'fire') {
                 if (time > tower.nextFire) {
-                    let target = getEnemyInRange(tower);
+                    let target = getEnemyInRange(tower, this.enemies.getChildren()); // 注意：需要传入敌人数组
                     if (target) {
                         // 【新增：元素联动检测】看看自己是不是在水塔范围内
                         let isBuffed = false;
-                        towers.forEach(otherTower => {
+                        this.towers.forEach(otherTower => {
                             // 找到场上存活的水塔
                             if (otherTower.type === 'water' && otherTower.active) {
                                 let dx = Math.abs(tower.x - otherTower.x);
@@ -478,7 +455,7 @@ class GameScene extends Phaser.Scene {
                         });
 
                         // 发射子弹，并把强化状态传过去
-                        shoot(this, tower, target, isBuffed);
+                        shoot(this, tower, target, this.bullets, isBuffed);
                         tower.nextFire = time + 500;
                     }
                 }
@@ -490,8 +467,8 @@ class GameScene extends Phaser.Scene {
                 if (time > tower.nextGoldTime) {
                     
                     // 1. 增加玩家金币并更新右上角UI
-                    playerMoney += 5; // 每次产费增加5金币
-                    moneyText.setText('费用: ' + playerMoney);
+                    this.playerMoney += 5; // 每次产费增加5金币
+                    this.moneyText.setText('💰 費用: ' + this.playerMoney);
                     
                     // 2. 做一个酷炫的飘字特效，告诉玩家“加钱了！”
                     let floatText = this.add.text(tower.x - 10, tower.y - 20, '+5$', { 
@@ -517,7 +494,7 @@ class GameScene extends Phaser.Scene {
                 if (time > tower.nextHealTime) {
                     
                     // 遍历所有的塔，看看谁在我的 5x5 水域内
-                    towers.forEach(targetTower => {
+                    this.towers.forEach(targetTower => {
                         // 计算两个塔在 X 轴和 Y 轴的像素距离
                         let dx = Math.abs(targetTower.x - tower.x);
                         let dy = Math.abs(targetTower.y - tower.y);
@@ -549,7 +526,7 @@ class GameScene extends Phaser.Scene {
             }
 
             // ================= 【新增】敌人攻击防御塔逻辑 =================
-            enemies.getChildren().forEach(enemy => {
+            this.enemies.getChildren().forEach(enemy => {
                 // 如果敌人还活着，并且攻击冷却好了 (2000毫秒/2秒 攻击一次)
                 if (enemy.active && time > enemy.nextAttack) {
                     
@@ -557,11 +534,11 @@ class GameScene extends Phaser.Scene {
                     let minDistance = enemy.attackRange; // 攻击范围 40
                     
                     // 遍历所有存活的塔，看看有没有在敌人嘴边的
-                    towers.forEach(tower => {
-                        if (tower.active) {
-                            let distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, tower.x, tower.y);
+                    this.towers.forEach(towerItem => {
+                        if (towerItem.active) {
+                            let distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, towerItem.x, towerItem.y);
                             if (distance <= minDistance) {
-                                targetTower = tower;
+                                targetTower = towerItem;
                                 minDistance = distance;
                             }
                         }
@@ -588,11 +565,11 @@ class GameScene extends Phaser.Scene {
             });
             
             // 【清理无效的塔】把已经被拆掉的塔从我们的管理数组里踢出去，防止报错
-            towers = towers.filter(t => t.active);
+            this.towers = this.towers.filter(t => t.active);
         });
 
         // ================= 3. 子弹追踪逻辑 =================
-        bullets.getChildren().forEach(bullet => {
+        this.bullets.getChildren().forEach(bullet => {
             if (bullet.active) {
                 // 如果目标存在且还活着
                 if (bullet.target && bullet.target.active) {
@@ -609,159 +586,3 @@ class GameScene extends Phaser.Scene {
     // 原本寫在全域的輔助函數 (例如 getEnemyInRange, shoot) 
     // 可以變成這個 Class 裡面的方法 (Method)，或者保留在外面當全域函數也可以。
 }
-
-// ================= 3. 暫停選單場景 =================
-class PauseScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'PauseScene' });
-    }
-
-    create() {
-        // 畫一個半透明的黑底，蓋住後方的遊戲畫面
-        this.add.rectangle(400, 300, 800, 600, 0x000000, 0.6);
-
-        this.add.text(400, 200, 'Game Paused', { 
-            fontSize: '48px', fill: '#ffffff', fontStyle: 'bold' 
-        }).setOrigin(0.5);
-
-        // continue button
-        let resumeBtn = this.add.text(400, 300, '▶ continue', { 
-            fontSize: '32px', fill: '#00ff00' 
-        }).setOrigin(0.5).setInteractive();
-
-        resumeBtn.on('pointerdown', () => {
-            this.scene.resume('GameScene'); // resume the game scene, let the game continue from where it was paused
-            this.scene.stop();              // close the pause menu scene
-        });
-
-        // restart button
-        let restartBtn = this.add.text(400, 380, '↻ restart the game', { 
-            fontSize: '32px', fill: '#ffff00' 
-        }).setOrigin(0.5).setInteractive();
-
-        restartBtn.on('pointerdown', () => {
-            this.scene.stop('GameScene');   // close the game scene
-            this.scene.start('GameScene'); // restart the game scene, which will trigger init() and create() again
-        });
-
-        // home button
-        let menuBtn = this.add.text(400, 460, '🏠 back to homepage', { 
-            fontSize: '32px', fill: '#ffaa00' 
-        }).setOrigin(0.5).setInteractive();
-
-        menuBtn.on('pointerdown', () => {
-            this.scene.stop('GameScene');   // close the game scene
-            this.scene.start('StartScene'); // change to StartScene, which is our main menu
-        });
-    }
-}
-
-// 升级版：支持圆形与矩阵朝向的索敌
-function getEnemyInRange(tower) {
-    let target = null;
-    let oldestSpawnTime = Infinity;
-
-    enemies.getChildren().forEach(enemy => {
-        if (enemy.active) {
-            let inRange = false;
-
-            // 如果是火塔，进行 3x3 矩阵碰撞计算
-            if (tower.type === 'fire') {
-                let cx = tower.x, cy = tower.y;
-                let minX, maxX, minY, maxY;
-
-                if (tower.direction === 'up') { minX = cx - 60; maxX = cx + 60; minY = cy - 100; maxY = cy + 20; }
-                else if (tower.direction === 'down') { minX = cx - 60; maxX = cx + 60; minY = cy - 20; maxY = cy + 100; }
-                else if (tower.direction === 'left') { minX = cx - 100; maxX = cx + 20; minY = cy - 60; maxY = cy + 60; }
-                else if (tower.direction === 'right') { minX = cx - 20; maxX = cx + 100; minY = cy - 60; maxY = cy + 60; }
-
-                // 检查敌人的坐标是否在这个矩形框内
-                if (enemy.x >= minX && enemy.x <= maxX && enemy.y >= minY && enemy.y <= maxY) {
-                    inRange = true;
-                }
-            } 
-            // 以后如果有普通圆形的塔，用备用逻辑
-            else if (tower.range > 0) {
-                let distance = Phaser.Math.Distance.Between(tower.x, tower.y, enemy.x, enemy.y);
-                if (distance <= tower.range) inRange = true;
-            }
-
-            // 锁定最早出生的那个
-            if (inRange && enemy.spawnTime < oldestSpawnTime) {
-                oldestSpawnTime = enemy.spawnTime;
-                target = enemy;
-            }
-        }
-    });
-    
-    return target;
-}
-
-// 辅助函数：绘制具有朝向的 3x3 矩阵范围
-function drawDirectionalRange(graphics, cx, cy, dir, type, alpha = 0.3) {
-    graphics.clear();
-    if (type !== 'fire') return; // 只有火塔才画这个矩阵
-
-    graphics.fillStyle(0xe74c3c, alpha);
-    let minX, minY, width = 120, height = 120; // 3x3格子即 120x120 像素
-
-    // 根据你文档的设计图，计算 3x3 矩阵的左上角起点坐标
-    if (dir === 'up') { minX = cx - 60; minY = cy - 100; }
-    else if (dir === 'down') { minX = cx - 60; minY = cy - 20; }
-    else if (dir === 'left') { minX = cx - 100; minY = cy - 60; }
-    else if (dir === 'right') { minX = cx - 20; minY = cy - 60; }
-
-    graphics.fillRect(minX, minY, width, height);
-}
-
-// 发射子弹
-function shoot(scene, tower, target, isBuffed = false) {
-    // 判断用哪种贴图
-    let textureToUse = isBuffed ? 'boilingBulletTexture' : 'bulletTexture';
-    
-    let bullet = bullets.create(tower.x, tower.y, textureToUse);
-    
-    // 【核心联动】如果被水塔强化，伤害乘以 1.5 倍！
-    bullet.damage = isBuffed ? tower.damage * 1.5 : tower.damage; 
-    bullet.target = target; 
-}
-
-// 击中敌人
-function hitEnemy(bullet, enemy) {
-    let damage = bullet.damage;
-    bullet.destroy(); 
-    enemy.hp -= damage; 
-    
-    enemy.setTint(0xffffff);
-    enemy.scene.time.delayedCall(100, () => { if(enemy.active) enemy.clearTint(); });
-
-    if (enemy.hp <= 0) {
-        // 增加金币 (假设基础怪给 10 块钱)
-        playerMoney += 10;
-        moneyText.setText('费用: ' + playerMoney);
-        
-        // 飘一个金币动画
-        let bountyText = enemy.scene.add.text(enemy.x, enemy.y, '+10$', { fill: '#ffd700', fontStyle: 'bold' });
-        enemy.scene.tweens.add({ 
-            targets: bountyText, y: enemy.y - 30, alpha: 0, duration: 800, 
-            onComplete: () => bountyText.destroy() 
-        });
-
-        enemy.destroy(); 
-    }
-}
-
-const config = {
-    type: Phaser.AUTO,
-    width: 1000,
-    height: 600,
-    parent: 'game-container',
-    physics: {
-        default: 'arcade',
-        arcade: { debug: false }
-    },
-    scene: [StartScene, GameScene, PauseScene]
-    // integrate both StartScene and GameScene into the game configuration
-};
-
-const game = new Phaser.Game(config);

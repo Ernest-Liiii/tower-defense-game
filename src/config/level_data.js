@@ -15,6 +15,13 @@ const LEVEL_DATA = {
             
             // 第三波：第二波出完後的 8 秒開始，總共出 15 隻，出怪速度極快 (800 毫秒)
             { count: 15, interval: 800, startDelay: 8000 }
+        ],
+
+        backgroundTexture: [
+            { key: 'grass', path: 'assets/images/Grass.png' }, // 草地背景
+            { key: 'dirt', path: 'assets/images/Dirt.png' }    // 泥地背景
         ]
     }
 };
+
+export { LEVEL_DATA };

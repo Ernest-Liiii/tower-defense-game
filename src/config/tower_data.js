@@ -7,3 +7,5 @@ const TOWER_DATA = {
     // 火塔：建塔费用100 [cite: 51]，生命值1500 [cite: 52]，攻击伤害500 [cite: 56]
     'fire':  { cost: 100, hp: 1500, range: 0, rangeType: 'grid3x3', damage: 500, color: 0xe74c3c }  
 };
+
+export { TOWER_DATA };
