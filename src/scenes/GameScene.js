@@ -49,6 +49,11 @@ export class GameScene extends Phaser.Scene {
         // 請確保路徑和大小寫完全對應你的資料夾結構！
         this.load.image('grass', 'assets/images/Grass.png');
         this.load.image('dirt', 'assets/images/Dirt.png');
+
+        // load the textures of the towers
+        this.load.image('water_tower', 'assets/images/WaterTower.png')
+        this.load.image('gold_tower', 'assets/images/GoldTower.png')
+        this.load.image('fire_tower', 'assets/images/FireTower.png')
     }
 
     create() {
@@ -276,13 +281,32 @@ export class GameScene extends Phaser.Scene {
             // 生成真正的实体塔
             let tower;
             if (this.currentSelectedTower === 'fire') {
-                tower = this.add.triangle(centerX, centerY, 0, 36, 18, 0, 36, 36, towerConfig.color);
-                tower.angle = this.previewTower.angle; // 继承拖拽决定的角度
-                tower.direction = this.currentDragDir; // 记录朝向给索敌算法用
+                // tower = this.add.triangle(centerX, centerY, 0, 36, 18, 0, 36, 36, towerConfig.color);
+                // tower.angle = this.previewTower.angle; 
+                // record the direction of the tower, 
+                // only need if we want to use the triangle to represent the fire tower
+
+                // add the fire tower texture
+                tower = this.add.image(centerX, centerY, 'fire_tower')
+                tower.setDisplaySize(this.cellSize, this.cellSize)
                 
-                // 画一个极度淡的红色区域作为常驻指示器
+                tower.direction = this.currentDragDir; // record the direction of the tower
+                
+                // draw a light red area for showing the range that fire tower can attack
                 drawDirectionalRange(this.add.graphics(), centerX, centerY, this.currentDragDir, 'fire', 0.15);
+            } else if (this.currentSelectedTower === 'water') {
+
+                // add the water tower texture
+                tower = this.add.image(centerX, centerY, 'water_tower')
+                tower.setDisplaySize(this.cellSize, this.cellSize); 
+            } else if (this.currentSelectedTower === 'gold') {
+
+                // add the gold tower texture
+                tower = this.add.image(centerX, centerY, 'gold_tower')
+                tower.setDisplaySize(this.cellSize, this.cellSize); 
             } else {
+                
+                // default tower texture
                 tower = this.add.rectangle(centerX, centerY, 36, 36, towerConfig.color);
             }
 

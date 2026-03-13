@@ -1,4 +1,5 @@
-// ================= 关卡配置 =================
+// this file is used to store the information of the levels
+
 const LEVEL_DATA = {
     // 关卡1：教学关卡 [cite: 24]
     level1: {
