@@ -5,9 +5,15 @@
 import { getEnemyInRange, drawDirectionalRange } from '../utils/towerHelpers.js';
 import { shoot, hitEnemy } from '../utils/combatHelpers.js';
 
+// import the system used in this game
+import { WaveSystem } from '../systems/WaveSystem.js';
+import { BuildingSystem } from '../systems/BuildingSystem.js';
+import { PathSystem } from '../systems/PathSystem.js';
+
 // import the data for levels and towers
 import { LEVEL_DATA } from '../config/level_data.js';
 import { TOWER_DATA } from '../config/tower_data.js';
+import { ENEMY_DATA } from '../config/enemy_data.js';
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -22,25 +28,13 @@ export class GameScene extends Phaser.Scene {
         this.nextEnemy = 0;      // 重置生怪計時器
         this.isGameOver = false; // 解除遊戲結束狀態
         
-        // 如果有殘留的拖曳狀態也一併還原
-        this.isDragging = false; 
-        this.previewTower = null;
-        this.previewRange = null;
-        this.dragStartX = 0;
-        this.dragStartY = 0;
-        this.currentDragDir = 'up';
         this.currentSelectedTower = 'fire'; // 默認選中火塔
-
-        // 【新增】波次控制變數
-        this.currentLevelData = LEVEL_DATA.level1; // 先預設讀取 level1
-        this.currentWaveIndex = 0;                 // 目前進行到第幾波 (從 0 開始)
-        this.spawnedInCurrentWave = 0;             // 當前這波已經出了幾隻怪
-        this.isSpawningWave = false;               // 狀態：目前是否正在連續生怪中
         
-        // 設定第一波的倒數計時器 (抓取第一波的 startDelay)
-        this.waveTimer = this.currentLevelData.waves[0].startDelay; 
-        this.nextEnemyTime = 0;                    // 下一隻怪生出來的確切時間點
-        this.isLevelWon = false;                   // 是否已經通關
+        this.waveSystem = new WaveSystem(this); 
+        this.waveSystem.start(LEVEL_DATA.level1);
+
+        this.pathSystem = new PathSystem(this);
+        this.pathSystem.init(LEVEL_DATA.level1);
     }
 
     // 【新增】預載入遊戲素材
@@ -117,40 +111,42 @@ export class GameScene extends Phaser.Scene {
         // ================= 3. 画网格和高亮路径 =================
         // this.add.grid(400, 300, 800, 600, cellSize, cellSize, 0x000000, 0, 0xffffff, 0.2);
 
-        this.path = this.add.path(0, 100);
-        this.path.lineTo(580, 100);
-        this.path.lineTo(580, 380);
-        this.path.lineTo(220, 380);
-        this.path.lineTo(220, 600);
+        // this.path = this.add.path(0, 100);
+        // this.path.lineTo(580, 100);
+        // this.path.lineTo(580, 380);
+        // this.path.lineTo(220, 380);
+        // this.path.lineTo(220, 600);
         
-        const graphics = this.add.graphics();
-        graphics.lineStyle(2, 0xffffff, 0.5);
-        this.path.draw(graphics);
+        // const graphics = this.add.graphics();
+        // graphics.lineStyle(2, 0xffffff, 0.5);
+        // this.path.draw(graphics);
 
-        const pathGraphics = this.add.graphics();
-        pathGraphics.fillStyle(0xffffff, 0.15); 
+        // const pathGraphics = this.add.graphics();
+        // pathGraphics.fillStyle(0xffffff, 0.15); 
         
+        if (this.pathSystem.currentFullPath.length > 0) {
+            let startPoint = this.pathSystem.currentFullPath[0];
+            this.path = this.add.path(startPoint.x, startPoint.y);
+            
+            for (let i = 1; i < this.pathSystem.currentFullPath.length; i++) {
+                let p = this.pathSystem.currentFullPath[i];
+                this.path.lineTo(p.x, p.y);
+            }
+        }
+
+        // 2. 動態鋪設草地與泥土
         for (let x = 0; x < 800; x += this.cellSize) {
             for (let y = 0; y < 600; y += this.cellSize) {
                 let cx = x + 20; 
                 let cy = y + 20; 
-                let isPath = false;
+                
+                // 檢查這個格子的中心點，有沒有在我們動態計算出的路徑陣列裡？
+                let isPath = this.pathSystem.currentFullPath.some(p => p.x === cx && p.y === cy);
 
-                // judge if the center of this cell is on the path
-                if (cy === 100 && cx <= 580) isPath = true; 
-                else if (cx === 580 && cy >= 100 && cy <= 380) isPath = true; 
-                else if (cy === 380 && cx >= 220 && cx <= 580) isPath = true; 
-                else if (cx === 220 && cy >= 380 && cy <= 600) isPath = true;
-
-                // if (isPath) pathGraphics.fillRect(x, y, cellSize, cellSize);
                 if (isPath) {
-                    // 如果是路徑，貼上泥土 (dirt)
                     let dirtTile = this.add.image(cx, cy, 'dirt');
-                    // .setDisplaySize() 是個好用的小魔法，不管你下載的圖片是 64x64 還是多大，
-                    // 它都會強制把圖片縮放成你的 cellSize (40x40)，完美貼合網格！
                     dirtTile.setDisplaySize(this.cellSize, this.cellSize); 
                 } else {
-                    // 如果不是路徑，貼上草地 (grass)
                     let grassTile = this.add.image(cx, cy, 'grass');
                     grassTile.setDisplaySize(this.cellSize, this.cellSize);
                 }
@@ -188,272 +184,17 @@ export class GameScene extends Phaser.Scene {
         }, null, this);
 
         // ================= 4. 全新拖拽建造逻辑 =================
-        
-        // 阶段一：按下鼠标 (生成预览塔，准备拖拽)
-        this.input.on('pointerdown', (pointer, gameObjects) => {
-            if (this.isGameOver || this.isLevelWon) return;
 
-            if (gameObjects.length > 0) return;
-            // if (pointer.x < 160 && pointer.y < 180) return; // 点在 UI 上不触发
-
-            const gridX = Math.floor(pointer.x / this.cellSize) * this.cellSize;
-            const gridY = Math.floor(pointer.y / this.cellSize) * this.cellSize;
-            const centerX = gridX + this.cellSize / 2;
-            const centerY = gridY + this.cellSize / 2;
-
-            // 路径与防重叠检测
-            let isOnPath = false;
-            if (centerY === 100 && centerX <= 580) isOnPath = true; 
-            else if (centerX === 580 && centerY >= 100 && centerY <= 380) isOnPath = true; 
-            else if (centerY === 380 && centerX >= 220 && centerX <= 580) isOnPath = true; 
-            else if (centerX === 220 && centerY >= 380 && centerY <= 600) isOnPath = true; 
-            if(isOnPath) return; 
-
-            let canBuild = true;
-            this.towers.forEach(t => { if(t.x === centerX && t.y === centerY) canBuild = false; });
-            if(!canBuild) return;
-
-            let towerConfig = TOWER_DATA[this.currentSelectedTower];
-            if (this.playerMoney < towerConfig.cost) {
-                let warning = this.add.text(pointer.x, pointer.y - 20, '费用不足!', { fill: '#ff0000' });
-                this.time.delayedCall(1000, () => warning.destroy());
-                return;
-            }
-
-            // 准备开始拖拽
-            this.isDragging = true;
-            this.dragStartX = pointer.x;
-            this.dragStartY = pointer.y;
-            this.currentDragDir = 'up'; // 默认朝上
-
-            // 创建半透明的“预览塔”
-            if (this.currentSelectedTower === 'fire') {
-                // 火塔：画一个指向上方的红色三角形
-                this.previewTower = this.add.triangle(centerX, centerY, 0, 36, 18, 0, 36, 36, towerConfig.color);
-            } else {
-                this.previewTower = this.add.rectangle(centerX, centerY, 36, 36, towerConfig.color);
-            }
-            this.previewTower.alpha = 0.5; // 半透明预览
-            this.previewRange = this.add.graphics();
-            drawDirectionalRange(this.previewRange, centerX, centerY, this.currentDragDir, this.currentSelectedTower);
-        });
-
-        // 阶段二：拖动鼠标 (改变方向)
-        this.input.on('pointermove', (pointer) => {
-            if (!this.isDragging || !this.previewTower) return;
-
-            // 计算鼠标滑动的偏移量
-            let dx = pointer.x - this.dragStartX;
-            let dy = pointer.y - this.dragStartY;
-
-            // 滑动超过 10 像素才触发转向（防手抖）
-            if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    this.currentDragDir = dx > 0 ? 'right' : 'left';
-                } else {
-                    this.currentDragDir = dy > 0 ? 'down' : 'up';
-                }
-            }
-
-            // 旋转预览塔
-            if (this.currentSelectedTower === 'fire') {
-                if (this.currentDragDir === 'up') this.previewTower.angle = 0;
-                else if (this.currentDragDir === 'right') this.previewTower.angle = 90;
-                else if (this.currentDragDir === 'down') this.previewTower.angle = 180;
-                else if (this.currentDragDir === 'left') this.previewTower.angle = -90;
-            }
-
-            drawDirectionalRange(this.previewRange, this.previewTower.x, this.previewTower.y, this.currentDragDir, this.currentSelectedTower);
-        });
-
-        // 阶段三：松开鼠标 (确认扣费并建造)
-        this.input.on('pointerup', (pointer) => {
-            if (!this.isDragging) return;
-            this.isDragging = false;
-
-            let towerConfig = TOWER_DATA[this.currentSelectedTower];
-            let centerX = this.previewTower.x;
-            let centerY = this.previewTower.y;
-
-            this.playerMoney -= towerConfig.cost;
-            this.moneyText.setText('💰 費用: ' + this.playerMoney);
-
-            // 生成真正的实体塔
-            let tower;
-            if (this.currentSelectedTower === 'fire') {
-                // tower = this.add.triangle(centerX, centerY, 0, 36, 18, 0, 36, 36, towerConfig.color);
-                // tower.angle = this.previewTower.angle; 
-                // record the direction of the tower, 
-                // only need if we want to use the triangle to represent the fire tower
-
-                // add the fire tower texture
-                tower = this.add.image(centerX, centerY, 'fire_tower')
-                tower.setDisplaySize(this.cellSize, this.cellSize)
-                
-                tower.direction = this.currentDragDir; // record the direction of the tower
-                
-                // draw a light red area for showing the range that fire tower can attack
-                drawDirectionalRange(this.add.graphics(), centerX, centerY, this.currentDragDir, 'fire', 0.15);
-            } else if (this.currentSelectedTower === 'water') {
-
-                // add the water tower texture
-                tower = this.add.image(centerX, centerY, 'water_tower')
-                tower.setDisplaySize(this.cellSize, this.cellSize); 
-            } else if (this.currentSelectedTower === 'gold') {
-
-                // add the gold tower texture
-                tower = this.add.image(centerX, centerY, 'gold_tower')
-                tower.setDisplaySize(this.cellSize, this.cellSize); 
-            } else {
-                
-                // default tower texture
-                tower = this.add.rectangle(centerX, centerY, 36, 36, towerConfig.color);
-            }
-
-            tower.type = this.currentSelectedTower;
-            tower.hp = towerConfig.hp;
-            tower.maxHp = towerConfig.hp;
-            tower.damage = towerConfig.damage;
-            tower.nextFire = 0;
-
-            if (tower.type === 'gold') tower.nextGoldTime = 0;
-            if (tower.type === 'water') {
-                tower.nextHealTime = 0;
-                this.add.rectangle(centerX, centerY, 200, 200, 0x3498db, 0.15);
-            }
-
-            this.towers.push(tower);
-
-            // 销毁预览对象
-            this.previewTower.destroy();
-            this.previewRange.destroy();
-            this.previewTower = null;
-            this.previewRange = null;
-        });
+        this.buildingSystem = new BuildingSystem(this);
+        this.buildingSystem.setupInputListeners();
     }
 
     update(time, delta) {
         // 這裡放你原本 game.js 裡 update() 函數中的所有程式碼！
         // 包含生成敵人、塔的攻擊邏輯等
         if (this.isGameOver) return; // 如果游戏结束了，就不执行后续的更新逻辑
-        // 1. 生成敌人
-        // 檢查是否還有尚未出完的波次
-        if (this.currentWaveIndex < this.currentLevelData.waves.length) {
-            
-            let currentWave = this.currentLevelData.waves[this.currentWaveIndex];
-
-            if (!this.isSpawningWave) {
-                // 狀態 A：等待下一波開始
-                if (time > this.waveTimer) {
-                    this.isSpawningWave = true;    // 切換狀態為「正在出怪」
-                    this.nextEnemyTime = time;     // 立刻準備生第一隻怪
-                }
-            } else {
-                // 狀態 B：正在連續出怪中
-                if (time > this.nextEnemyTime) {
-                    
-                    // --- 這裡放你原本生怪的代碼 ---
-                    let enemy = this.add.follower(this.path, 0, 100, 'enemyTexture');
-                    this.enemies.add(enemy);
-                    
-                    enemy.hp = 100; 
-                    enemy.spawnTime = time; // 记录这个敌人的出生时间戳！
-                    this.nextEnemy = time + 1500;
-
-                    // 【新增】敌人的攻击属性 (参考设计文档：近战兵)
-                    enemy.damage = 150;     // 伤害 150
-                    enemy.attackRange = 40; // 范围是自身这格(40像素)
-                    enemy.nextAttack = 0;   // 攻击冷却计时器
-
-                    // 开始走路径
-                    enemy.startFollow({
-                        duration: 10000, 
-                        rotateToPath: false,
-                        onComplete: () => {
-                            // 【核心修复 1】判断敌人是不是还活着，只有活着的敌人才允许扣血
-                            if (enemy && enemy.active) {
-                                enemy.destroy(); 
-                                
-                                this.playerLives -= 1; 
-                                this.livesText.setText('❤️ 生命: ' + this.playerLives); 
-                                
-                                let dmgText = this.add.text(enemy.x, enemy.y - 20, '-1 生命', { fill: '#ff0000', fontStyle: 'bold' });
-                                this.tweens.add({ targets: dmgText, y: enemy.y - 50, alpha: 0, duration: 1000, onComplete: () => dmgText.destroy() });
-
-                                // 游戏结束判定
-                                if (this.playerLives <= 0 && !this.isGameOver) {
-                                    this.isGameOver = true;    
-                                    this.physics.pause(); 
-                                    this.tweens.pauseAll(); 
-
-                                    // 變暗的背景和 Game Over 文字
-                                    this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7);
-                                    this.add.text(400, 250, '遊戲結束 GAME OVER', { 
-                                        fontSize: '40px', fill: '#ff0000', fontStyle: 'bold' 
-                                    }).setOrigin(0.5);
-
-                                    // 重新開始按鈕
-                                    let restartBtn = this.add.text(400, 350, '↻ 重新開始', { 
-                                        fontSize: '32px', fill: '#00ff00' 
-                                    }).setOrigin(0.5).setInteractive();
-
-                                    restartBtn.on('pointerover', () => restartBtn.setStyle({ fill: '#ffff00' }));
-                                    restartBtn.on('pointerout', () => restartBtn.setStyle({ fill: '#00ff00' }));
-
-                                    restartBtn.on('pointerdown', () => {
-                                        // 這一行會關閉當前場景，並重新觸發 init() -> create()
-                                        this.scene.restart(); 
-                                    });
-                                }
-                            }
-                        }
-                    })
-                    
-                    this.nextEnemy = time + 1500;
-                    // --- 生怪代碼結束 ---
-
-                    // 更新計數器與時間
-                    this.spawnedInCurrentWave++;
-                    this.nextEnemyTime = time + currentWave.interval; // 根據 json 設定設定下一隻的時間
-
-                    // 檢查這波是不是全出完了？
-                    if (this.spawnedInCurrentWave >= currentWave.count) {
-                        this.isSpawningWave = false;         // 停止連續出怪
-                        this.currentWaveIndex++;             // 推進到下一波
-                        this.spawnedInCurrentWave = 0;       // 計數器歸零
-
-                        // 如果還有下一波，設定下一波的等待時間
-                        if (this.currentWaveIndex < this.currentLevelData.waves.length) {
-                            // 新波次的等待時間 = 當前時間 + json 裡設定的 startDelay
-                            this.waveTimer = time + this.currentLevelData.waves[this.currentWaveIndex].startDelay;
-                        }
-                    }
-                }
-            }
-        } else {
-            // 所有波次的怪都出完了！檢查場上的怪是不是都被清空了？
-            if (this.enemies.getLength() === 0 && !this.isGameOver && !this.isLevelWon) {
-                this.isLevelWon = true; // 標記為通關
-                
-                // 暫停遊戲，顯示勝利畫面
-                this.physics.pause();
-                this.tweens.pauseAll(); 
-                this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7);
-                this.add.text(400, 300, '關卡勝利！ YOU WIN！', { 
-                    fontSize: '40px', fill: '#00ff00', fontStyle: 'bold' 
-                }).setOrigin(0.5);
-
-                // restart button
-                let restartBtn = this.add.text(400, 400, '↻ 再玩一次', {
-                    fontSize: '32px', fill: '#00ff00'
-                }).setOrigin(0.5).setInteractive();
-                restartBtn.on('pointerover', () => restartBtn.setStyle({ fill: '#ffff00' }));
-                restartBtn.on('pointerout', () => restartBtn.setStyle({ fill: '#00ff00' }));
-                restartBtn.on('pointerdown', () => {
-                    this.scene.restart(); // 重新開始遊戲
-                });
-            }
-        }
+        
+        this.waveSystem.update(time);
 
         // 2. 防御塔工作逻辑 (包含攻击与产费)
         this.towers.forEach(tower => {
@@ -607,6 +348,90 @@ export class GameScene extends Phaser.Scene {
         });
     }
     
+    spawnEnemy(enemyType, currentTime) {
+        // 1. 從 enemy_data.js 中獲取這個敵人的配置資料
+        const config = ENEMY_DATA[enemyType];
+        if (!config) { 
+            console.warn(`找不到敵人設定：${enemyType}`); 
+            return; 
+        }
+
+        // 2. 建立敵人實體並加入群組 (動態讀取起點座標)
+        let startX = this.pathSystem.currentFullPath[0].x;
+        let startY = this.pathSystem.currentFullPath[0].y;
+        let enemy = this.add.follower(this.path, startX, startY, 'enemyTexture');
+        this.enemies.add(enemy);
+        
+        // 3. 套用設定檔裡的數值
+        enemy.hp = config.hp; 
+        enemy.maxHp = config.hp;
+        enemy.damage = config.damage;
+        enemy.attackRange = 40; 
+        enemy.nextAttack = 0;   
+        enemy.spawnTime = currentTime; 
+
+        // 4. 計算走完路徑所需的時間 (時間 = 距離 / 速度)
+        // 假設路徑總長度約為 1440 像素，乘以 1000 轉換為毫秒
+        const pathLength = 1440; 
+        const duration = (pathLength / config.speed) * 1000;
+
+        // 5. 開始沿著路徑移動
+        enemy.startFollow({
+            duration: duration, 
+            rotateToPath: false,
+            onComplete: () => {
+                // 敵人走到終點，扣玩家血量
+                if (enemy && enemy.active) {
+                    enemy.destroy(); 
+                    
+                    this.playerLives -= 1; 
+                    this.livesText.setText('❤️ 生命: ' + this.playerLives); 
+                    
+                    // 扣血飄字特效
+                    let dmgText = this.add.text(enemy.x, enemy.y - 20, '-1 生命', { fill: '#ff0000', fontStyle: 'bold' });
+                    this.tweens.add({ targets: dmgText, y: enemy.y - 50, alpha: 0, duration: 1000, onComplete: () => dmgText.destroy() });
+
+                    // 遊戲結束判定
+                    if (this.playerLives <= 0 && !this.isGameOver) {
+                        this.isGameOver = true;    
+                        this.physics.pause(); 
+                        this.tweens.pauseAll(); 
+                        
+                        // 顯示 Game Over 畫面
+                        this.add.rectangle(500, 300, 1000, 600, 0x000000, 0.7);
+                        this.add.text(500, 250, '遊戲結束 GAME OVER', { fontSize: '48px', fill: '#ff0000', fontStyle: 'bold' }).setOrigin(0.5);
+                        
+                        // 重新開始按鈕
+                        let restartBtn = this.add.text(500, 350, '↻ 重新開始', { 
+                            fontSize: '32px', fill: '#00ff00' 
+                        }).setOrigin(0.5).setInteractive();
+
+                        restartBtn.on('pointerover', () => restartBtn.setStyle({ fill: '#ffff00' }));
+                        restartBtn.on('pointerout', () => restartBtn.setStyle({ fill: '#00ff00' }));
+                        restartBtn.on('pointerdown', () => {
+                            this.scene.restart(); 
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    updatePhaserPath() {
+        // 如果目前有計算出路徑
+        if (this.pathSystem.currentFullPath.length > 0) {
+            let startPoint = this.pathSystem.currentFullPath[0];
+            
+            // 重新建立一個全新的 Phaser Path 物件
+            this.path = this.add.path(startPoint.x, startPoint.y);
+            
+            for (let i = 1; i < this.pathSystem.currentFullPath.length; i++) {
+                let p = this.pathSystem.currentFullPath[i];
+                this.path.lineTo(p.x, p.y);
+            }
+        }
+    }
+
     // 原本寫在全域的輔助函數 (例如 getEnemyInRange, shoot) 
     // 可以變成這個 Class 裡面的方法 (Method)，或者保留在外面當全域函數也可以。
 }
