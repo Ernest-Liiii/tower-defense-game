@@ -28,11 +28,14 @@ export class PauseUI {
         }).setOrigin(0.5).setInteractive();
 
         restartBtn.on('pointerdown', () => {
+            let gameScene = this.scene.scene.get('GameScene');
+            let currentLevel = gameScene.currentLevelKey || 'level1';
 
             this.scene.scene.stop('GameScene');  
             this.scene.scene.stop('GameUI'); 
             this.scene.scene.stop(); // stop the pause scene itself
-            this.scene.scene.start('GameScene'); 
+            
+            this.scene.scene.start('GameScene', { levelKey: currentLevel }); 
         });
 
         let menuBtn = this.scene.add.text(400, 460, '🏠 back to homepage', { 

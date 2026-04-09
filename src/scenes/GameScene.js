@@ -22,7 +22,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // 當場景每次啟動 (或重新開始) 時，都會先執行這裡
-    init() {
+    init(data) {
         this.events.off('updateMoney');
         this.events.off('updateLives');
         this.events.off('updateWave');
@@ -30,8 +30,13 @@ export class GameScene extends Phaser.Scene {
         this.events.off('levelWon');
         this.events.off('forceNextWave');
 
-        this.playerMoney = LEVEL_DATA.level1.initialMoney; // 重置金幣
-        this.playerLives = LEVEL_DATA.level1.initialLives;  // 重置生命值
+        // check if there's a levelKey passed in from the StartScene, if not default to 'level1'
+        this.currentLevelKey = (data && data.levelKey) ? data.levelKey : 'level1';
+        // dynamically load the level data based on the currentLevelKey
+        const currentLevelData = LEVEL_DATA[this.currentLevelKey];
+
+        this.playerMoney = currentLevelData.initialMoney; // 重置金幣
+        this.playerLives = currentLevelData.initialLives;  // 重置生命值
         this.towers = [];        // 清空防禦塔陣列
         this.nextEnemy = 0;      // 重置生怪計時器
 
@@ -45,11 +50,11 @@ export class GameScene extends Phaser.Scene {
         
         // initialize the wave system
         this.waveSystem = new WaveSystem(this); 
-        this.waveSystem.start(LEVEL_DATA.level1);
+        this.waveSystem.start(currentLevelData);
 
         // initialize the path system
         this.pathSystem = new PathSystem(this);
-        this.pathSystem.init(LEVEL_DATA.level1);
+        this.pathSystem.init(currentLevelData);
     }
 
     // 【新增】預載入遊戲素材

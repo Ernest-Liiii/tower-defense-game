@@ -25,7 +25,7 @@ export class StartUI {
 
         startBtn.on('pointerdown', () => {
             // use the scene's scene property to start the GameScene
-            this.scene.scene.start('GameScene'); 
+            this.scene.scene.start('LevelScene'); // start the level selection scene instead of directly starting the game scene
         });
     }
 }

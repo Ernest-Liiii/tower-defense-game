@@ -4,6 +4,7 @@
 import { StartScene } from './scenes/StartScene.js';
 import { GameScene } from './scenes/GameScene.js';
 import { PauseScene } from './scenes/PauseScene.js';
+import { LevelScene } from './scenes/LevelScene.js';
 import { GameUI } from './ui/GameUI.js';
 
 // game configuration settings
@@ -18,7 +19,13 @@ const config = {
     },
     // register the scenes we created, 
     // the game will start with the first scene in this list (StartScene)
-    scene: [StartScene, GameScene, GameUI, PauseScene]
+    scene: [
+        StartScene, 
+        LevelScene, 
+        GameScene, 
+        GameUI, 
+        PauseScene
+    ]
 };
 
 const game = new Phaser.Game(config);

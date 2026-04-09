@@ -124,7 +124,8 @@ export class GameUI extends Phaser.Scene {
         restartBtn.on('pointerdown', () => {
             
             this.scene.stop(); // stop UI scene
-            this.scene.get('GameScene').scene.restart(); // restart GameScene
+            // this.scene.get('GameScene').scene.restart(); // restart GameScene
+            gameScene.scene.restart({ levelKey: gameScene.currentLevelKey });
         });
     }
 
