@@ -21,8 +21,11 @@ export class WaveSystem {
         this.activeSpawners = [];
         
         // Set the countdown timer for the first wave
-        this.nextWaveStartTime = this.scene.time.now + this.currentLevelData.waves[0].startDelay;
+        this.nextWaveStartTime = this.scene.timeSystem.time + this.currentLevelData.waves[0].startDelay;
         console.log("WaveSystem 已啟動");
+
+        // update the wave text in the UI
+        this.scene.events.emit('updateWave', this.currentWaveIndex + 1, this.currentLevelData.waves.length);
     }
 
     // Call this method every frame in the GameScene's update method
@@ -87,6 +90,9 @@ export class WaveSystem {
                         let nextDelay = this.currentLevelData.waves[this.currentWaveIndex].startDelay;
                         this.nextWaveStartTime = time + nextDelay;
                         console.log(`清場成功！下一波將在 ${nextDelay/1000} 秒後到來`);
+
+                        // update the wave text in the UI after successfully clearing the wave
+                        this.scene.events.emit('updateWave', this.currentWaveIndex + 1, this.currentLevelData.waves.length);
                     }
                 }
             }
@@ -98,9 +104,19 @@ export class WaveSystem {
                 this.scene.isLevelWon = true; 
                 this.scene.physics.pause();
                 this.scene.tweens.pauseAll(); 
-                this.scene.add.rectangle(500, 300, 1000, 600, 0x000000, 0.7);
-                this.scene.add.text(500, 250, '關卡勝利！ YOU WIN!', { fontSize: '48px', fill: '#00ff00', fontStyle: 'bold' }).setOrigin(0.5);
+
+                // Emit a custom event to notify the GameUI to show the "You Win" screen
+                this.scene.events.emit('levelWon');
             }
+        }
+    }
+
+    forceStartNextWave() {
+        if (this.currentWaveIndex < this.currentLevelData.waves.length) {
+            console.log("強制跳過等待，立即開始下一波！");
+            this.nextWaveStartTime = this.scene.time.now; // 直接将下一波的开始时间设置为当前时间
+        } else {
+            console.log("已經是最後一波了，無法強制開始下一波");
         }
     }
 }

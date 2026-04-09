@@ -9,6 +9,7 @@ import { shoot, hitEnemy } from '../utils/combatHelpers.js';
 import { WaveSystem } from '../systems/WaveSystem.js';
 import { BuildingSystem } from '../systems/BuildingSystem.js';
 import { PathSystem } from '../systems/PathSystem.js';
+import { TimeSystem } from '../systems/TimeSystem.js';
 
 // import the data for levels and towers
 import { LEVEL_DATA } from '../config/level_data.js';
@@ -29,10 +30,15 @@ export class GameScene extends Phaser.Scene {
         this.isGameOver = false; // 解除遊戲結束狀態
         
         this.currentSelectedTower = 'fire'; // 默認選中火塔
+
+        // initialize the time systems
+        this.timeSystem = new TimeSystem(this)
         
+        // initialize the wave system
         this.waveSystem = new WaveSystem(this); 
         this.waveSystem.start(LEVEL_DATA.level1);
 
+        // initialize the path system
         this.pathSystem = new PathSystem(this);
         this.pathSystem.init(LEVEL_DATA.level1);
     }
@@ -59,57 +65,6 @@ export class GameScene extends Phaser.Scene {
         this.scene.launch('GameUI');  // launch the UI scene
 
         this.add.text(20, 20, '关卡 1：教学关卡', { fontSize: '20px', fill: '#00ff00' });
-    
-        // // ================= 1. 右側專屬 UI 面板 =================
-        
-        // // 畫一個深灰色的矩形作為右側底板 (X: 900, Y: 300, 寬: 200, 高: 600)
-        // let uiPanel = this.add.rectangle(900, 300, 200, 600, 0x2c3e50);
-        // // 【超級重要】將這塊底板設為可互動，它就會像一面完美的盾牌，擋下所有點擊，你再也不用擔心誤觸網格了！
-        // uiPanel.setInteractive(); 
-
-        // // 面板標題
-        // this.add.text(820, 20, '控制面板', { fontSize: '24px', fill: '#ffffff', fontStyle: 'bold' });
-
-        // // 狀態資訊 (X 座標統一移到 820)
-        // this.moneyText = this.add.text(820, 70, '💰 費用: ' + this.playerMoney, { fontSize: '20px', fill: '#ffd700', fontStyle: 'bold' });
-        // this.livesText = this.add.text(820, 100, '❤️ 生命: ' + this.playerLives, { fontSize: '20px', fill: '#ff4757', fontStyle: 'bold' });
-
-        // // 分隔線
-        // this.add.rectangle(900, 140, 160, 2, 0x7f8fa6);
-
-        // // 建造按鈕 (往下排)
-        // let btnGold = this.add.text(820, 160, '🟡 金塔 ($50)', { fontSize: '18px', fill: '#feca57' }).setInteractive();
-        // let btnWater = this.add.text(820, 200, '🔵 水塔 ($50)', { fontSize: '18px', fill: '#48dbfb' }).setInteractive();
-        // let btnFire = this.add.text(820, 240, '🔴 火塔 ($100)', { fontSize: '18px', fill: '#ff6b6b' }).setInteractive();
-
-        // // 顯示當前選中的塔
-        // this.selectedText = this.add.text(820, 300, '👉 當前: 火塔', { fontSize: '18px', fill: '#1dd1a1', fontStyle: 'bold' });
-
-        // // 暫停按鈕 (放在右下角)
-        // let pauseBtn = this.add.text(900, 550, '⏸ 暫停遊戲', { 
-        //     fontSize: '20px', fill: '#ffffff', backgroundColor: '#34495e', padding: { x: 10, y: 5 }
-        // }).setOrigin(0.5).setInteractive();
-
-        // // --- 以下保留你原本的點擊事件邏輯 ---
-        // pauseBtn.on('pointerdown', () => {
-        //     this.scene.pause(); 
-        //     this.scene.launch('PauseScene'); 
-        // });
-
-        // // 保存當前場景實例的引用，用於事件回調
-        // const scene = this;
-        // btnGold.on('pointerdown', () => { 
-        //     scene.currentSelectedTower = 'gold'; 
-        //     scene.selectedText.setText('👉 當前: 金塔'); 
-        // });
-        // btnWater.on('pointerdown', () => { 
-        //     scene.currentSelectedTower = 'water'; 
-        //     scene.selectedText.setText('👉 當前: 水塔'); 
-        // });
-        // btnFire.on('pointerdown', () => { 
-        //     scene.currentSelectedTower = 'fire'; 
-        //     scene.selectedText.setText('👉 當前: 火塔'); 
-        // });
         
         if (this.pathSystem.currentFullPath.length > 0) {
             let startPoint = this.pathSystem.currentFullPath[0];
@@ -186,14 +141,30 @@ export class GameScene extends Phaser.Scene {
 
         this.buildingSystem = new BuildingSystem(this);
         this.buildingSystem.setupInputListeners();
+
+        // create the hp bar graphics for towers and enemies
+        this.hpGraphics = this.add.graphics();
+        this.hpGraphics.setDepth(10);  // ensure hp bars are always on top of other sprites
+
+        this.events.on('forceNextWave', () => {
+            // 调用 waveSystem 里的强制跳过倒计时方法
+            // (你需要确保 waveSystem 里面有跳过等待、直接出怪的逻辑)
+            if (this.waveSystem) {
+                this.waveSystem.forceStartNextWave(); 
+            }
+        });
     }
 
     update(time, delta) {
         // 這裡放你原本 game.js 裡 update() 函數中的所有程式碼！
         // 包含生成敵人、塔的攻擊邏輯等
-        if (this.isGameOver) return; // 如果游戏结束了，就不执行后续的更新逻辑
+        if (this.isGameOver || this.isLevelWon) return; // 如果游戏结束了，就不执行后续的更新逻辑
         
-        this.waveSystem.update(time);
+        this.timeSystem.update(delta);
+
+        const currentTime = this.timeSystem.time;
+
+        this.waveSystem.update(currentTime);
 
         // 2. 防御塔工作逻辑 (包含攻击与产费)
         this.towers.forEach(tower => {
@@ -201,7 +172,7 @@ export class GameScene extends Phaser.Scene {
             // ================= 火塔：攻击逻辑 =================
             // 只有攻击范围大于0的塔（火塔）才会索敌开火
             if (tower.type === 'fire') {
-                if (time > tower.nextFire) {
+                if (currentTime > tower.nextFire) {
                     let target = getEnemyInRange(tower, this.enemies.getChildren()); // 注意：需要传入敌人数组
                     if (target) {
                         // 【新增：元素联动检测】看看自己是不是在水塔范围内
@@ -220,7 +191,14 @@ export class GameScene extends Phaser.Scene {
 
                         // 发射子弹，并把强化状态传过去
                         shoot(this, tower, target, this.bullets, isBuffed);
-                        tower.nextFire = time + 500;
+                        // ✅ 核心修复：防止时间误差累积吞子弹
+                        if (currentTime - tower.nextFire > 500) {
+                            // 如果塔闲置了很久（敌人刚进入范围），以当前时间重置
+                            tower.nextFire = currentTime + 500; 
+                        } else {
+                            // 如果在持续射击，精确累加，绝不吞噬毫秒误差！
+                            tower.nextFire += 500; 
+                        }
                     }
                 }
             }
@@ -228,7 +206,7 @@ export class GameScene extends Phaser.Scene {
             // ================= 金塔：产费逻辑 =================
             if (tower.type === 'gold') {
                 // 如果当前时间超过了下次产费时间
-                if (time > tower.nextGoldTime) {
+                if (currentTime > tower.nextGoldTime) {
                     
                     // 1. 增加玩家金币并更新右上角UI
                     this.playerMoney += 10; // 每次产费增加10金币
@@ -250,14 +228,14 @@ export class GameScene extends Phaser.Scene {
                     this.events.emit('updateMoney', this.playerMoney); // emit an event to update money in UI
 
                     // 3. 设定下一次产费的时间 (当前时间 + 2000毫秒)
-                    tower.nextGoldTime = time + 2000; 
+                    tower.nextGoldTime += 2000; 
                 }
             }
 
             // ================= 水塔：群体治疗逻辑 =================
             if (tower.type === 'water') {
                 // 每 1000 毫秒（1秒）触发一次
-                if (time > tower.nextHealTime) {
+                if (currentTime > tower.nextHealTime) {
                     
                     // 遍历所有的塔，看看谁在我的 5x5 水域内
                     this.towers.forEach(targetTower => {
@@ -287,14 +265,14 @@ export class GameScene extends Phaser.Scene {
                         }
                     });
 
-                    tower.nextHealTime = time + 1000; 
+                    tower.nextHealTime += 1000; 
                 }
             }
 
             // ================= 【新增】敌人攻击防御塔逻辑 =================
             this.enemies.getChildren().forEach(enemy => {
                 // 如果敌人还活着，并且攻击冷却好了 (2000毫秒/2秒 攻击一次)
-                if (enemy.active && time > enemy.nextAttack) {
+                if (enemy.active && currentTime > enemy.nextAttack) {
                     
                     let targetTower = null;
                     let minDistance = enemy.attackRange; // 攻击范围 40
@@ -325,7 +303,11 @@ export class GameScene extends Phaser.Scene {
                         }
                         
                         // 重置敌人的攻击冷却时间 (当前时间 + 2秒)
-                        enemy.nextAttack = time + 2000; 
+                        if (currentTime - enemy.nextAttack > 2000) {
+                            enemy.nextAttack = currentTime + 2000;
+                        } else {
+                            enemy.nextAttack += 2000;
+                        }
                     }
                 }
             });
@@ -345,6 +327,22 @@ export class GameScene extends Phaser.Scene {
                     // 目标如果已经死了，子弹就在空中直接销毁
                     bullet.destroy();
                 }
+            }
+        });
+
+        this.hpGraphics.clear();
+
+        // set the tower hp bars
+        this.towers.forEach(tower => {
+            if (tower.active && tower.hp < tower.maxHp) {
+                this.drawHpBar(tower.x, tower.y - 25, tower.hp, tower.maxHp);
+            }
+        })
+
+        // set the enemy hp bars
+        this.enemies.getChildren().forEach(enemy => {
+            if (enemy.active && enemy.hp < enemy.maxHp) {
+                this.drawHpBar(enemy.x, enemy.y - 20, enemy.hp, enemy.maxHp, true);
             }
         });
     }
@@ -400,21 +398,6 @@ export class GameScene extends Phaser.Scene {
                         this.isGameOver = true;    
                         this.physics.pause(); 
                         this.tweens.pauseAll(); 
-                        
-                        // // 顯示 Game Over 畫面
-                        // this.add.rectangle(500, 300, 1000, 600, 0x000000, 0.7);
-                        // this.add.text(500, 250, '遊戲結束 GAME OVER', { fontSize: '48px', fill: '#ff0000', fontStyle: 'bold' }).setOrigin(0.5);
-                        
-                        // // 重新開始按鈕
-                        // let restartBtn = this.add.text(500, 350, '↻ 重新開始', { 
-                        //     fontSize: '32px', fill: '#00ff00' 
-                        // }).setOrigin(0.5).setInteractive();
-
-                        // restartBtn.on('pointerover', () => restartBtn.setStyle({ fill: '#ffff00' }));
-                        // restartBtn.on('pointerout', () => restartBtn.setStyle({ fill: '#00ff00' }));
-                        // restartBtn.on('pointerdown', () => {
-                        //     this.scene.restart(); 
-                        // });
 
                         this.events.emit('gameOver'); // emit an event to notify UI about game over
                     }
@@ -454,6 +437,22 @@ export class GameScene extends Phaser.Scene {
                 tileData.image.setTexture('grass');
             }
         });
+    }
+
+    drawHpBar(x, y, currentHp, maxHp) {
+        const width = 30;  // length of the hp bar
+        const height = 4;  // height of the hp bar
+        const startX = x - width / 2;
+        const startY = y;
+
+        // draw the red background (total hp)
+        this.hpGraphics.fillStyle(0xff0000, 1);
+        this.hpGraphics.fillRect(startX, startY, width, height);
+
+        // draw the green foreground (current hp)
+        const greenWidth = width * (currentHp / maxHp);
+        this.hpGraphics.fillStyle(0x00ff00, 1);
+        this.hpGraphics.fillRect(startX, startY, greenWidth, height);
     }
 
     // 原本寫在全域的輔助函數 (例如 getEnemyInRange, shoot) 
