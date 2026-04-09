@@ -97,6 +97,12 @@ export class GameUI extends Phaser.Scene {
         });
 
         // 4. listen to GameScene events to update UI
+        gameScene.events.off('updateMoney');
+        gameScene.events.off('updateLives');
+        gameScene.events.off('updateWave');
+        gameScene.events.off('gameOver');
+        gameScene.events.off('levelWon');
+
         gameScene.events.on('updateMoney', (money) => this.moneyText.setText('💰 費用: ' + money));
         gameScene.events.on('updateLives', (lives) => this.livesText.setText('❤️ 生命: ' + lives));
         gameScene.events.on('updateWave', (current, total) => {
@@ -116,6 +122,7 @@ export class GameUI extends Phaser.Scene {
         restartBtn.on('pointerover', () => restartBtn.setStyle({ fill: '#ffff00' }));
         restartBtn.on('pointerout', () => restartBtn.setStyle({ fill: '#00ff00' }));
         restartBtn.on('pointerdown', () => {
+            
             this.scene.stop(); // stop UI scene
             this.scene.get('GameScene').scene.restart(); // restart GameScene
         });
@@ -140,6 +147,7 @@ export class GameUI extends Phaser.Scene {
         homeBtn.on('pointerover', () => homeBtn.setStyle({ fill: '#ffff00' }));
         homeBtn.on('pointerout', () => homeBtn.setStyle({ fill: '#ffaa00' }));
         homeBtn.on('pointerdown', () => {
+
             this.scene.stop('GameScene'); // close the game scene
             this.scene.stop();            // close the UI scene
             this.scene.start('StartScene'); // return to the start scene

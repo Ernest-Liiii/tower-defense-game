@@ -23,11 +23,20 @@ export class GameScene extends Phaser.Scene {
 
     // 當場景每次啟動 (或重新開始) 時，都會先執行這裡
     init() {
+        this.events.off('updateMoney');
+        this.events.off('updateLives');
+        this.events.off('updateWave');
+        this.events.off('gameOver');
+        this.events.off('levelWon');
+        this.events.off('forceNextWave');
+
         this.playerMoney = LEVEL_DATA.level1.initialMoney; // 重置金幣
         this.playerLives = LEVEL_DATA.level1.initialLives;  // 重置生命值
         this.towers = [];        // 清空防禦塔陣列
         this.nextEnemy = 0;      // 重置生怪計時器
+
         this.isGameOver = false; // 解除遊戲結束狀態
+        this.isLevelWon = false; // 解除關卡勝利狀態
         
         this.currentSelectedTower = 'fire'; // 默認選中火塔
 
@@ -102,37 +111,43 @@ export class GameScene extends Phaser.Scene {
             }
         }
 
-        const texGraphics = this.add.graphics();
-        texGraphics.fillStyle(0xff0000);
-        texGraphics.fillCircle(10, 10, 10);
-        texGraphics.generateTexture('enemyTexture', 20, 20);
-        texGraphics.clear();
+        if (!this.textures.exists('enemyTexture')) {
+            const texGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+            
+            texGraphics.fillStyle(0xff0000);
+            texGraphics.fillCircle(10, 10, 10);
+            texGraphics.generateTexture('enemyTexture', 20, 20);
+            texGraphics.clear();
 
-        texGraphics.fillStyle(0xffff00);
-        texGraphics.fillCircle(4, 4, 4);
-        texGraphics.generateTexture('bulletTexture', 8, 8);
-        texGraphics.clear();
+            texGraphics.fillStyle(0xffff00);
+            texGraphics.fillCircle(4, 4, 4);
+            texGraphics.generateTexture('bulletTexture', 8, 8);
+            texGraphics.clear();
 
-        // ================= 沸水弹贴图 =================
-        texGraphics.fillStyle(0xff8c00); // 橙红色
-        texGraphics.fillCircle(6, 6, 6); // 沸水弹稍微画大一点点 (半径6)
-        texGraphics.generateTexture('boilingBulletTexture', 12, 12);
-        texGraphics.clear();
+            texGraphics.fillStyle(0xff8c00); 
+            texGraphics.fillCircle(6, 6, 6); 
+            texGraphics.generateTexture('boilingBulletTexture', 12, 12);
+            
+            texGraphics.destroy(); // 画完贴图后销毁画笔，释放内存
+        }
 
         this.enemies = this.physics.add.group(); // 初始化敌人组
         this.bullets = this.physics.add.group(); // 初始化子弹组
 
-        // 重新绑定碰撞检测
         this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => {
+            
+            // 🚨 防止一发子弹打多次
+            if (!bullet.active) return;
+            
+            // 🚨 终极护盾 1：防止鞭尸！如果怪物在这一帧已经死了，绝对不进行二次伤害和发钱！
+            if (!enemy.active) return;
+
             // 调用 helper 处理伤害，并接收是否击杀的结果
             let isKilled = hitEnemy(bullet, enemy);
 
             // 如果敌人被这个子弹打死了
             if (isKilled) {
-                // GameScene 亲自给自己的钱包加钱，绝对不会有同步错误！
                 this.playerMoney += 10;
-                
-                // 然后亲自发事件通知 UI 更新
                 this.events.emit('updateMoney', this.playerMoney);
             }
         }, null, this);
@@ -146,6 +161,8 @@ export class GameScene extends Phaser.Scene {
         this.hpGraphics = this.add.graphics();
         this.hpGraphics.setDepth(10);  // ensure hp bars are always on top of other sprites
 
+        this.events.off('forceNextWave');
+
         this.events.on('forceNextWave', () => {
             // 调用 waveSystem 里的强制跳过倒计时方法
             // (你需要确保 waveSystem 里面有跳过等待、直接出怪的逻辑)
@@ -153,11 +170,29 @@ export class GameScene extends Phaser.Scene {
                 this.waveSystem.forceStartNextWave(); 
             }
         });
+
+        // 🚨 终极护盾 2：当场景即将关闭/重启时，一刀切断所有残留的动画和物理运算！
+        this.events.once('shutdown', () => {
+            // 1. 强行停止所有敌人的内部路径动画！(这就是引起 cut 报错的终极元凶)
+            if (this.enemies && this.enemies.scene) {
+                this.enemies.getChildren().forEach(enemy => {
+                    // 如果敌人身上有停止跟随的方法，立刻调用它
+                    if (enemy && enemy.stopFollow) {
+                        enemy.stopFollow(); 
+                    }
+                });
+            }
+
+            // 2. 杀掉所有残留的飘字和特效动画
+            this.tweens.killAll();
+        });
     }
 
     update(time, delta) {
         // 這裡放你原本 game.js 裡 update() 函數中的所有程式碼！
         // 包含生成敵人、塔的攻擊邏輯等
+        if (!this.sys || !this.sys.isActive() || !this.enemies || !this.enemies.scene) return;
+
         if (this.isGameOver || this.isLevelWon) return; // 如果游戏结束了，就不执行后续的更新逻辑
         
         this.timeSystem.update(delta);
@@ -168,6 +203,13 @@ export class GameScene extends Phaser.Scene {
 
         // 2. 防御塔工作逻辑 (包含攻击与产费)
         this.towers.forEach(tower => {
+
+            if (!tower.isCooldownInitialized) {
+                tower.nextFire = currentTime + 500;
+                tower.nextGoldTime = currentTime + 2000;
+                tower.nextHealTime = currentTime + 1000;
+                tower.isCooldownInitialized = true; // 标记为已初始化
+            }
             
             // ================= 火塔：攻击逻辑 =================
             // 只有攻击范围大于0的塔（火塔）才会索敌开火

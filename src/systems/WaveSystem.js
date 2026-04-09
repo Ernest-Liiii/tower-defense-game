@@ -112,11 +112,61 @@ export class WaveSystem {
     }
 
     forceStartNextWave() {
-        if (this.currentWaveIndex < this.currentLevelData.waves.length) {
-            console.log("強制跳過等待，立即開始下一波！");
-            this.nextWaveStartTime = this.scene.time.now; // 直接将下一波的开始时间设置为当前时间
+        // 🔒 安全锁 1：如果游戏已经结束，直接拦截，按了没反应，防止诈尸
+        if (!this.scene || !this.scene.sys || !this.scene.sys.isActive()) return;
+        if (this.scene.isGameOver || this.scene.isLevelWon) return;
+
+        let currentTime = this.scene.timeSystem.time;
+        let isWaitingForStart = (this.activeSpawners.length === 0 && !this.currentWaveSpawningComplete && !this.waitingForEnemyDefeat);
+
+        if (isWaitingForStart) {
+            console.log("強制跳過倒數計時！");
+            this.nextWaveStartTime = currentTime;
         } else {
-            console.log("已經是最後一波了，無法強制開始下一波");
+            let nextIndex = this.currentWaveIndex + 1;
+
+            if (nextIndex < this.currentLevelData.waves.length) {
+                console.log("場上還有怪，提前呼叫下一波！");
+                
+                this.currentWaveIndex = nextIndex;
+                let nextWaveConfig = this.currentLevelData.waves[this.currentWaveIndex];
+
+                nextWaveConfig.enemies.forEach(enemyConfig => {
+                    let delay = enemyConfig.delay || 0;
+                    this.activeSpawners.push({
+                        type: enemyConfig.type,
+                        amountLeft: enemyConfig.amount,
+                        interval: enemyConfig.interval,
+                        nextSpawnTime: currentTime + delay
+                    });
+                });
+
+                this.currentWaveSpawningComplete = false;
+                this.waitingForEnemyDefeat = false;
+
+                // 🔒 安全锁 2：防止 UI 显示 4 / 3 这种越界的波次数字
+                let displayWave = Math.min(this.currentWaveIndex + 1, this.currentLevelData.waves.length);
+                this.scene.events.emit('updateWave', displayWave, this.currentLevelData.waves.length);
+
+                // 奖励金币与特效
+                this.scene.playerMoney += 20;
+                this.scene.events.emit('updateMoney', this.scene.playerMoney);
+                
+                let bonusText = this.scene.add.text(880, 610, '+20$ 提前迎戰!', { 
+                    fontSize: '14px', fill: '#ffd700', fontStyle: 'bold' 
+                }).setOrigin(0.5);
+                
+                this.scene.tweens.add({
+                    targets: bonusText, 
+                    y: 560, 
+                    alpha: 0, 
+                    duration: 1500, 
+                    onComplete: () => bonusText.destroy()
+                });
+
+            } else {
+                console.log("已經是最後一波了，無法呼叫");
+            }
         }
     }
 }

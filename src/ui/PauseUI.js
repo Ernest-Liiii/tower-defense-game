@@ -28,8 +28,10 @@ export class PauseUI {
         }).setOrigin(0.5).setInteractive();
 
         restartBtn.on('pointerdown', () => {
+
             this.scene.scene.stop('GameScene');  
             this.scene.scene.stop('GameUI'); 
+            this.scene.scene.stop(); // stop the pause scene itself
             this.scene.scene.start('GameScene'); 
         });
 
@@ -38,8 +40,10 @@ export class PauseUI {
         }).setOrigin(0.5).setInteractive();
 
         menuBtn.on('pointerdown', () => {
+
             this.scene.scene.stop('GameScene'); 
-            this.scene.scene.stop('GameUI');   
+            this.scene.scene.stop('GameUI');  
+            this.scene.scene.stop(); // stop the pause scene itself 
             this.scene.scene.start('StartScene'); 
         });
     }
