@@ -122,10 +122,12 @@ export class GameUI extends Phaser.Scene {
         restartBtn.on('pointerover', () => restartBtn.setStyle({ fill: '#ffff00' }));
         restartBtn.on('pointerout', () => restartBtn.setStyle({ fill: '#00ff00' }));
         restartBtn.on('pointerdown', () => {
+            let gs = this.scene.get('GameScene');
+            let currentLevel = gs.currentLevelKey || 'level1';
             
             this.scene.stop(); // stop UI scene
-            // this.scene.get('GameScene').scene.restart(); // restart GameScene
-            gameScene.scene.restart({ levelKey: gameScene.currentLevelKey });
+
+            gs.scene.restart({ levelKey: currentLevel }); // restart GameScene
         });
     }
 

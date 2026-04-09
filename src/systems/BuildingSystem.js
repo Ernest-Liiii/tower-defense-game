@@ -21,7 +21,27 @@ export class BuildingSystem {
         // ================= Stage 1: point down the mouse =================
         this.scene.input.on('pointerdown', (pointer, gameObjects) => {
             if (this.scene.isGameOver || this.scene.isLevelWon) return;
-            if (gameObjects.length > 0) return; // exit when tap the UI
+
+            // ✅ 【新增】处理点击到已有物体的逻辑
+            if (gameObjects.length > 0) {
+                let clickedObj = gameObjects[0];
+                
+                // 如果点到的是升级/出售按钮，直接 return，让按钮自己的事件去处理
+                if (clickedObj.isMenuBtn) return; 
+
+                // 如果点到的是已经建好的塔，显示弹出菜单
+                if (clickedObj.isBuiltTower) {
+                    this.showTowerMenu(clickedObj);
+                    return; 
+                }
+
+                // 如果点到右侧 UI 面板等其他东西，隐藏菜单并退出
+                this.hideTowerMenu();
+                return; 
+            }
+
+            // ✅ 点到了空地，先隐藏菜单，然后继续执行原本的建造逻辑
+            this.hideTowerMenu();
 
             const gridX = Math.floor(pointer.x / this.scene.cellSize) * this.scene.cellSize;
             const gridY = Math.floor(pointer.y / this.scene.cellSize) * this.scene.cellSize;
@@ -29,13 +49,6 @@ export class BuildingSystem {
             const centerY = gridY + this.scene.cellSize / 2;
 
             // 1. Path collision detection
-            // TODO: I need to adjust later...
-            // let isOnPath = false;
-            // if (centerY === 100 && centerX <= 580) isOnPath = true; 
-            // else if (centerX === 580 && centerY >= 100 && centerY <= 380) isOnPath = true; 
-            // else if (centerY === 380 && centerX >= 220 && centerX <= 580) isOnPath = true; 
-            // else if (centerX === 220 && centerY >= 380 && centerY <= 600) isOnPath = true; 
-            // if(isOnPath) return; 
             let isWaypoint = this.scene.pathSystem.waypoints.some(wp => {
                 let wpX = wp.col * this.scene.cellSize + this.scene.cellSize / 2;
                 let wpY = wp.row * this.scene.cellSize + this.scene.cellSize / 2;
@@ -140,7 +153,10 @@ export class BuildingSystem {
                 tower = this.scene.add.image(centerX, centerY, 'fire_tower');
                 tower.setDisplaySize(this.scene.cellSize, this.scene.cellSize);
                 tower.direction = this.currentDragDir; 
-                drawDirectionalRange(this.scene.add.graphics(), centerX, centerY, this.currentDragDir, 'fire', 0.15);
+
+                tower.rangeGraphic = this.scene.add.graphics();
+                drawDirectionalRange(tower.rangeGraphic, centerX, centerY, this.currentDragDir, 'fire', 0.15);
+                
             } else if (this.scene.currentSelectedTower === 'water') {
                 tower = this.scene.add.image(centerX, centerY, 'water_tower');
                 tower.setDisplaySize(this.scene.cellSize, this.scene.cellSize); 
@@ -157,10 +173,15 @@ export class BuildingSystem {
             tower.damage = towerConfig.damage;
             tower.nextFire = 0;
 
+            tower.setInteractive();     // 让塔可以被鼠标点击
+            tower.isBuiltTower = true;  // 打上专属标记，方便识别
+            tower.level = 1;            // 初始等级
+            tower.cost = towerConfig.cost; // 记录造价，用来计算升级和出售的钱
+
             if (tower.type === 'gold') tower.nextGoldTime = 0;
             if (tower.type === 'water') {
                 tower.nextHealTime = 0;
-                this.scene.add.rectangle(centerX, centerY, 200, 200, 0x3498db, 0.15);
+                tower.rangeGraphic = this.scene.add.rectangle(centerX, centerY, 200, 200, 0x3498db, 0.15);
             }
 
             // Add the tower to the tower array in GameScene
@@ -181,5 +202,103 @@ export class BuildingSystem {
             this.previewTower = null;
             this.previewRange = null;
         });
+    }
+
+    showTowerMenu(tower) {
+        this.hideTowerMenu(); // 先隐藏可能打开的其他菜单
+
+        // 创建一个容器把按钮装起来，放在塔的上方
+        this.towerMenu = this.scene.add.container(tower.x, tower.y - 40);
+        this.towerMenu.setDepth(200);
+
+        // 计算升级费用和回收价格
+        let upgradeCost = tower.cost; // 假设升级费用等于建造费用
+        let sellPrice = Math.floor(tower.cost * 0.5); // 出售回收 50%
+
+        // 1. 升级按钮 (蓝色)
+        let upgBtn = this.scene.add.text(2, -20, `⬆️ 升级($${upgradeCost})`, { 
+            fontSize: '12px', fill: '#fff', backgroundColor: '#0984e3', padding: {x:4, y:4} 
+        }).setInteractive().setOrigin(0, 0.5);
+        upgBtn.isMenuBtn = true; // 打上标记，防止触发建造
+
+        upgBtn.on('pointerdown', () => this.upgradeTower(tower, upgradeCost));
+
+        // 如果满级了(比如3级)，或者钱不够，按钮变灰
+        if (tower.level >= 3) {
+            upgBtn.setText('MAX');
+            upgBtn.setStyle({ backgroundColor: '#636e72' });
+            upgBtn.disableInteractive();
+        } else if (this.scene.playerMoney < upgradeCost) {
+            upgBtn.setStyle({ backgroundColor: '#636e72' });
+        }
+
+        // 2. 出售按钮 (红色)
+        let sellBtn = this.scene.add.text(-2, -20, `💰 出售(+$${sellPrice})`, { 
+            fontSize: '12px', fill: '#fff', backgroundColor: '#d63031', padding: {x:4, y:4} 
+        }).setInteractive().setOrigin(1, 0.5);
+        sellBtn.isMenuBtn = true;
+
+        sellBtn.on('pointerdown', () => this.sellTower(tower, sellPrice));
+
+        this.towerMenu.add([sellBtn, upgBtn]);
+    }
+
+    hideTowerMenu() {
+        if (this.towerMenu) {
+            this.towerMenu.destroy();
+            this.towerMenu = null;
+        }
+    }
+
+    upgradeTower(tower, cost) {
+        if (this.scene.playerMoney >= cost && tower.level < 3) {
+            // 扣钱
+            this.scene.playerMoney -= cost;
+            this.scene.events.emit('updateMoney', this.scene.playerMoney);
+
+            // 升级属性 (简单粗暴：伤害提升 50%，或者如果是金塔/水塔可以增加效果)
+            tower.level++;
+            tower.damage = Math.floor(tower.damage * 1.5);
+            tower.maxHp += 50;
+            tower.hp += 50;
+            
+            // 外观反馈：变大一点点，或者加个光环
+            tower.scale += 0.1; 
+            
+            // 飘字提示
+            let upgText = this.scene.add.text(tower.x, tower.y - 20, 'Level UP!', { fill: '#00ff00', fontStyle: 'bold' }).setOrigin(0.5);
+            this.scene.tweens.add({ targets: upgText, y: tower.y - 50, alpha: 0, duration: 1000, onComplete: () => upgText.destroy() });
+
+            this.hideTowerMenu();
+        } else {
+            // 钱不够的提示
+            let warning = this.scene.add.text(tower.x, tower.y - 20, '费用不足!', { fill: '#ff0000' }).setOrigin(0.5);
+            this.scene.time.delayedCall(1000, () => warning.destroy());
+        }
+    }
+
+    sellTower(tower, price) {
+        // 加钱
+        this.scene.playerMoney += price;
+        this.scene.events.emit('updateMoney', this.scene.playerMoney);
+
+        // 摧毁绑定的攻击范围指示器
+        if (tower.rangeGraphic) {
+            tower.rangeGraphic.destroy();
+        }
+
+        // 彻底摧毁塔
+        tower.active = false;
+        tower.destroy();
+
+        // 从 GameScene 的塔数组中移除
+        this.scene.towers = this.scene.towers.filter(t => t !== tower);
+
+        // 卖掉塔之后，必须重新计算路径并更新地图纹理！
+        this.scene.pathSystem.recalculatePath();
+        this.scene.updatePhaserPath();
+        this.scene.updateMapTiles();
+
+        this.hideTowerMenu();
     }
 }
