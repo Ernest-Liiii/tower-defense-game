@@ -55,74 +55,61 @@ export class GameScene extends Phaser.Scene {
         this.cellSize = 40;
         // 這裡放你原本 game.js 裡 create() 函數中的所有程式碼！
         // 包含建立網格、UI、註冊拖拽事件等
+
+        this.scene.launch('GameUI');  // launch the UI scene
+
         this.add.text(20, 20, '关卡 1：教学关卡', { fontSize: '20px', fill: '#00ff00' });
     
-        // ================= 1. 右側專屬 UI 面板 =================
+        // // ================= 1. 右側專屬 UI 面板 =================
         
-        // 畫一個深灰色的矩形作為右側底板 (X: 900, Y: 300, 寬: 200, 高: 600)
-        let uiPanel = this.add.rectangle(900, 300, 200, 600, 0x2c3e50);
-        // 【超級重要】將這塊底板設為可互動，它就會像一面完美的盾牌，擋下所有點擊，你再也不用擔心誤觸網格了！
-        uiPanel.setInteractive(); 
+        // // 畫一個深灰色的矩形作為右側底板 (X: 900, Y: 300, 寬: 200, 高: 600)
+        // let uiPanel = this.add.rectangle(900, 300, 200, 600, 0x2c3e50);
+        // // 【超級重要】將這塊底板設為可互動，它就會像一面完美的盾牌，擋下所有點擊，你再也不用擔心誤觸網格了！
+        // uiPanel.setInteractive(); 
 
-        // 面板標題
-        this.add.text(820, 20, '控制面板', { fontSize: '24px', fill: '#ffffff', fontStyle: 'bold' });
+        // // 面板標題
+        // this.add.text(820, 20, '控制面板', { fontSize: '24px', fill: '#ffffff', fontStyle: 'bold' });
 
-        // 狀態資訊 (X 座標統一移到 820)
-        this.moneyText = this.add.text(820, 70, '💰 費用: ' + this.playerMoney, { fontSize: '20px', fill: '#ffd700', fontStyle: 'bold' });
-        this.livesText = this.add.text(820, 100, '❤️ 生命: ' + this.playerLives, { fontSize: '20px', fill: '#ff4757', fontStyle: 'bold' });
+        // // 狀態資訊 (X 座標統一移到 820)
+        // this.moneyText = this.add.text(820, 70, '💰 費用: ' + this.playerMoney, { fontSize: '20px', fill: '#ffd700', fontStyle: 'bold' });
+        // this.livesText = this.add.text(820, 100, '❤️ 生命: ' + this.playerLives, { fontSize: '20px', fill: '#ff4757', fontStyle: 'bold' });
 
-        // 分隔線
-        this.add.rectangle(900, 140, 160, 2, 0x7f8fa6);
+        // // 分隔線
+        // this.add.rectangle(900, 140, 160, 2, 0x7f8fa6);
 
-        // 建造按鈕 (往下排)
-        let btnGold = this.add.text(820, 160, '🟡 金塔 ($50)', { fontSize: '18px', fill: '#feca57' }).setInteractive();
-        let btnWater = this.add.text(820, 200, '🔵 水塔 ($50)', { fontSize: '18px', fill: '#48dbfb' }).setInteractive();
-        let btnFire = this.add.text(820, 240, '🔴 火塔 ($100)', { fontSize: '18px', fill: '#ff6b6b' }).setInteractive();
+        // // 建造按鈕 (往下排)
+        // let btnGold = this.add.text(820, 160, '🟡 金塔 ($50)', { fontSize: '18px', fill: '#feca57' }).setInteractive();
+        // let btnWater = this.add.text(820, 200, '🔵 水塔 ($50)', { fontSize: '18px', fill: '#48dbfb' }).setInteractive();
+        // let btnFire = this.add.text(820, 240, '🔴 火塔 ($100)', { fontSize: '18px', fill: '#ff6b6b' }).setInteractive();
 
-        // 顯示當前選中的塔
-        this.selectedText = this.add.text(820, 300, '👉 當前: 火塔', { fontSize: '18px', fill: '#1dd1a1', fontStyle: 'bold' });
+        // // 顯示當前選中的塔
+        // this.selectedText = this.add.text(820, 300, '👉 當前: 火塔', { fontSize: '18px', fill: '#1dd1a1', fontStyle: 'bold' });
 
-        // 暫停按鈕 (放在右下角)
-        let pauseBtn = this.add.text(900, 550, '⏸ 暫停遊戲', { 
-            fontSize: '20px', fill: '#ffffff', backgroundColor: '#34495e', padding: { x: 10, y: 5 }
-        }).setOrigin(0.5).setInteractive();
+        // // 暫停按鈕 (放在右下角)
+        // let pauseBtn = this.add.text(900, 550, '⏸ 暫停遊戲', { 
+        //     fontSize: '20px', fill: '#ffffff', backgroundColor: '#34495e', padding: { x: 10, y: 5 }
+        // }).setOrigin(0.5).setInteractive();
 
-        // --- 以下保留你原本的點擊事件邏輯 ---
-        pauseBtn.on('pointerdown', () => {
-            this.scene.pause(); 
-            this.scene.launch('PauseScene'); 
-        });
+        // // --- 以下保留你原本的點擊事件邏輯 ---
+        // pauseBtn.on('pointerdown', () => {
+        //     this.scene.pause(); 
+        //     this.scene.launch('PauseScene'); 
+        // });
 
-        // 保存當前場景實例的引用，用於事件回調
-        const scene = this;
-        btnGold.on('pointerdown', () => { 
-            scene.currentSelectedTower = 'gold'; 
-            scene.selectedText.setText('👉 當前: 金塔'); 
-        });
-        btnWater.on('pointerdown', () => { 
-            scene.currentSelectedTower = 'water'; 
-            scene.selectedText.setText('👉 當前: 水塔'); 
-        });
-        btnFire.on('pointerdown', () => { 
-            scene.currentSelectedTower = 'fire'; 
-            scene.selectedText.setText('👉 當前: 火塔'); 
-        });
-
-        // ================= 3. 画网格和高亮路径 =================
-        // this.add.grid(400, 300, 800, 600, cellSize, cellSize, 0x000000, 0, 0xffffff, 0.2);
-
-        // this.path = this.add.path(0, 100);
-        // this.path.lineTo(580, 100);
-        // this.path.lineTo(580, 380);
-        // this.path.lineTo(220, 380);
-        // this.path.lineTo(220, 600);
-        
-        // const graphics = this.add.graphics();
-        // graphics.lineStyle(2, 0xffffff, 0.5);
-        // this.path.draw(graphics);
-
-        // const pathGraphics = this.add.graphics();
-        // pathGraphics.fillStyle(0xffffff, 0.15); 
+        // // 保存當前場景實例的引用，用於事件回調
+        // const scene = this;
+        // btnGold.on('pointerdown', () => { 
+        //     scene.currentSelectedTower = 'gold'; 
+        //     scene.selectedText.setText('👉 當前: 金塔'); 
+        // });
+        // btnWater.on('pointerdown', () => { 
+        //     scene.currentSelectedTower = 'water'; 
+        //     scene.selectedText.setText('👉 當前: 水塔'); 
+        // });
+        // btnFire.on('pointerdown', () => { 
+        //     scene.currentSelectedTower = 'fire'; 
+        //     scene.selectedText.setText('👉 當前: 火塔'); 
+        // });
         
         if (this.pathSystem.currentFullPath.length > 0) {
             let startPoint = this.pathSystem.currentFullPath[0];
@@ -134,6 +121,8 @@ export class GameScene extends Phaser.Scene {
             }
         }
 
+        this.mapTiles = []; // initailize the array to hold our tile sprites
+
         // 2. 動態鋪設草地與泥土
         for (let x = 0; x < 800; x += this.cellSize) {
             for (let y = 0; y < 600; y += this.cellSize) {
@@ -143,13 +132,18 @@ export class GameScene extends Phaser.Scene {
                 // 檢查這個格子的中心點，有沒有在我們動態計算出的路徑陣列裡？
                 let isPath = this.pathSystem.currentFullPath.some(p => p.x === cx && p.y === cy);
 
-                if (isPath) {
-                    let dirtTile = this.add.image(cx, cy, 'dirt');
-                    dirtTile.setDisplaySize(this.cellSize, this.cellSize); 
-                } else {
-                    let grassTile = this.add.image(cx, cy, 'grass');
-                    grassTile.setDisplaySize(this.cellSize, this.cellSize);
-                }
+                let textureKey = isPath ? 'dirt' : 'grass';
+
+                let tile = this.add.image(cx, cy, textureKey);
+                tile.setDisplaySize(this.cellSize, this.cellSize);
+
+                // store the tile sprite
+                // and its coordinates for future adjustments wheb 
+                this.mapTiles.push({
+                    image: tile,
+                    cx: cx,
+                    cy: cy
+                });
             }
         }
 
@@ -175,12 +169,17 @@ export class GameScene extends Phaser.Scene {
 
         // 重新绑定碰撞检测
         this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => {
-            // 注意：这里需要传入当前场景的引用
-            const moneyData = { value: this.playerMoney };
-            hitEnemy(this, bullet, enemy, moneyData, this.moneyText);
+            // 调用 helper 处理伤害，并接收是否击杀的结果
+            let isKilled = hitEnemy(bullet, enemy);
 
-            // update the moneyData in the GameScene
-            this.playerMoney = moneyData.value;
+            // 如果敌人被这个子弹打死了
+            if (isKilled) {
+                // GameScene 亲自给自己的钱包加钱，绝对不会有同步错误！
+                this.playerMoney += 10;
+                
+                // 然后亲自发事件通知 UI 更新
+                this.events.emit('updateMoney', this.playerMoney);
+            }
         }, null, this);
 
         // ================= 4. 全新拖拽建造逻辑 =================
@@ -232,14 +231,14 @@ export class GameScene extends Phaser.Scene {
                 if (time > tower.nextGoldTime) {
                     
                     // 1. 增加玩家金币并更新右上角UI
-                    this.playerMoney += 5; // 每次产费增加5金币
-                    this.moneyText.setText('💰 費用: ' + this.playerMoney);
+                    this.playerMoney += 10; // 每次产费增加10金币
+                    // this.moneyText.setText('💰 費用: ' + this.playerMoney);
                     
-                    // 2. 做一个酷炫的飘字特效，告诉玩家“加钱了！”
-                    let floatText = this.add.text(tower.x - 10, tower.y - 20, '+5$', { 
+                    // // 2. 做一个酷炫的飘字特效，告诉玩家“加钱了！”
+                    let floatText = this.add.text(tower.x - 10, tower.y - 20, '+10$', { 
                         fontSize: '18px', fill: '#ffd700', fontStyle: 'bold' 
                     });
-                    // 使用 Phaser 的补间动画 (Tween) 让文字向上飘并渐渐变透明
+                    // // 使用 Phaser 的补间动画 (Tween) 让文字向上飘并渐渐变透明
                     this.tweens.add({
                         targets: floatText,
                         y: tower.y - 50, // 往上飘 30 像素
@@ -247,6 +246,8 @@ export class GameScene extends Phaser.Scene {
                         duration: 1000,  // 动画持续 1 秒
                         onComplete: () => floatText.destroy() // 动画结束后销毁文字，节省内存
                     });
+
+                    this.events.emit('updateMoney', this.playerMoney); // emit an event to update money in UI
 
                     // 3. 设定下一次产费的时间 (当前时间 + 2000毫秒)
                     tower.nextGoldTime = time + 2000; 
@@ -385,7 +386,10 @@ export class GameScene extends Phaser.Scene {
                     enemy.destroy(); 
                     
                     this.playerLives -= 1; 
-                    this.livesText.setText('❤️ 生命: ' + this.playerLives); 
+
+                    this.events.emit('updateLives', this.playerLives); // emit an event to update lives in UI
+
+                    // this.livesText.setText('❤️ 生命: ' + this.playerLives); 
                     
                     // 扣血飄字特效
                     let dmgText = this.add.text(enemy.x, enemy.y - 20, '-1 生命', { fill: '#ff0000', fontStyle: 'bold' });
@@ -397,20 +401,22 @@ export class GameScene extends Phaser.Scene {
                         this.physics.pause(); 
                         this.tweens.pauseAll(); 
                         
-                        // 顯示 Game Over 畫面
-                        this.add.rectangle(500, 300, 1000, 600, 0x000000, 0.7);
-                        this.add.text(500, 250, '遊戲結束 GAME OVER', { fontSize: '48px', fill: '#ff0000', fontStyle: 'bold' }).setOrigin(0.5);
+                        // // 顯示 Game Over 畫面
+                        // this.add.rectangle(500, 300, 1000, 600, 0x000000, 0.7);
+                        // this.add.text(500, 250, '遊戲結束 GAME OVER', { fontSize: '48px', fill: '#ff0000', fontStyle: 'bold' }).setOrigin(0.5);
                         
-                        // 重新開始按鈕
-                        let restartBtn = this.add.text(500, 350, '↻ 重新開始', { 
-                            fontSize: '32px', fill: '#00ff00' 
-                        }).setOrigin(0.5).setInteractive();
+                        // // 重新開始按鈕
+                        // let restartBtn = this.add.text(500, 350, '↻ 重新開始', { 
+                        //     fontSize: '32px', fill: '#00ff00' 
+                        // }).setOrigin(0.5).setInteractive();
 
-                        restartBtn.on('pointerover', () => restartBtn.setStyle({ fill: '#ffff00' }));
-                        restartBtn.on('pointerout', () => restartBtn.setStyle({ fill: '#00ff00' }));
-                        restartBtn.on('pointerdown', () => {
-                            this.scene.restart(); 
-                        });
+                        // restartBtn.on('pointerover', () => restartBtn.setStyle({ fill: '#ffff00' }));
+                        // restartBtn.on('pointerout', () => restartBtn.setStyle({ fill: '#00ff00' }));
+                        // restartBtn.on('pointerdown', () => {
+                        //     this.scene.restart(); 
+                        // });
+
+                        this.events.emit('gameOver'); // emit an event to notify UI about game over
                     }
                 }
             }
@@ -430,6 +436,24 @@ export class GameScene extends Phaser.Scene {
                 this.path.lineTo(p.x, p.y);
             }
         }
+    }
+
+    // this is a helper function to update the textures of the map
+    updateMapTiles() {
+        if (!this.mapTiles) return;
+
+        // for all map tiles
+        this.mapTiles.forEach(tileData => {
+            // check if the center of this tile is in the current path
+            let isPath = this.pathSystem.currentFullPath.some(p => p.x === tileData.cx && p.y === tileData.cy);
+
+            // change the texture of this tile based on whether it's a path tile or not
+            if (isPath) {
+                tileData.image.setTexture('dirt');
+            } else {
+                tileData.image.setTexture('grass');
+            }
+        });
     }
 
     // 原本寫在全域的輔助函數 (例如 getEnemyInRange, shoot) 

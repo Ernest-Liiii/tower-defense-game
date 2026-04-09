@@ -131,7 +131,8 @@ export class BuildingSystem {
             // Deduct costs and update the UI
             this.isDragging = false;
             this.scene.playerMoney -= towerConfig.cost;
-            this.scene.moneyText.setText('💰 費用: ' + this.scene.playerMoney);
+            // this.scene.moneyText.setText('💰 費用: ' + this.scene.playerMoney);
+            this.scene.events.emit('updateMoney', this.scene.playerMoney); // emit an event to update money in UI
 
             // Logic Behind Building Physical Towers
             let tower;
@@ -167,7 +168,12 @@ export class BuildingSystem {
 
             // recalculate the path and update to phaser
             this.scene.pathSystem.recalculatePath();
+
+            // update the path in phaser
             this.scene.updatePhaserPath();
+
+            // update the map tiles for the paths
+            this.scene.updateMapTiles();
 
             // clean preview
             this.previewTower.destroy();

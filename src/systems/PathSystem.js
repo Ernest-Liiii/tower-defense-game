@@ -49,7 +49,7 @@ export class PathSystem {
         }));
 
         // 開發除錯用：在畫面上畫出路徑
-        this.drawDebugPath();
+        // this.drawDebugPath();
         
         return true; // 成功找到路徑
     }

@@ -14,7 +14,32 @@ export function shoot(scene, tower, target, bullets, isBuffed = false) {
 }
 
 // this is a helper function to handle the logic when a bullet kills an enemy
-export function hitEnemy(scene, bullet, enemy, playerMoney, moneyText) {
+// export function hitEnemy(scene, bullet, enemy, playerMoney, moneyText) {
+//     let damage = bullet.damage;
+//     bullet.destroy(); 
+//     enemy.hp -= damage; 
+    
+//     enemy.setTint(0xffffff);
+//     enemy.scene.time.delayedCall(100, () => { if(enemy.active) enemy.clearTint(); });
+
+//     if (enemy.hp <= 0) {
+//         // add money to the player when an enemy is killed
+//         playerMoney.value += 10;
+//         // moneyText.setText('$: ' + playerMoney.value);
+//         scene.events.emit('updateMoney', playerMoney.value); // emit an event to update money in UI
+        
+//         // the animation of showing the money gained when an enemy is killed
+//         let bountyText = enemy.scene.add.text(enemy.x, enemy.y, '+10$', { fill: '#ffd700', fontStyle: 'bold' });
+//         // animation that makes the text float up and fade out
+//         enemy.scene.tweens.add({ 
+//             targets: bountyText, y: enemy.y - 30, alpha: 0, duration: 800, 
+//             onComplete: () => bountyText.destroy() 
+//         });
+
+//         enemy.destroy(); 
+//     }
+// }
+export function hitEnemy(bullet, enemy) {
     let damage = bullet.damage;
     bullet.destroy(); 
     enemy.hp -= damage; 
@@ -23,18 +48,20 @@ export function hitEnemy(scene, bullet, enemy, playerMoney, moneyText) {
     enemy.scene.time.delayedCall(100, () => { if(enemy.active) enemy.clearTint(); });
 
     if (enemy.hp <= 0) {
-        // add money to the player when an enemy is killed
-        playerMoney.value += 10;
-        moneyText.setText('$: ' + playerMoney.value);
-        
-        // the animation of showing the money gained when an enemy is killed
+        // 播放击杀金币文字特效 (利用 enemy.scene 可以直接获取当前场景，无需传入 scene)
         let bountyText = enemy.scene.add.text(enemy.x, enemy.y, '+10$', { fill: '#ffd700', fontStyle: 'bold' });
-        // animation that makes the text float up and fade out
+        
         enemy.scene.tweens.add({ 
             targets: bountyText, y: enemy.y - 30, alpha: 0, duration: 800, 
             onComplete: () => bountyText.destroy() 
         });
 
         enemy.destroy(); 
+        
+        // 【关键】：敌人死了，告诉外面 true
+        return true; 
     }
+    
+    // 【关键】：敌人没死，告诉外面 false
+    return false;
 }
