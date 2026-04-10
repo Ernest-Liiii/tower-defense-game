@@ -2,7 +2,7 @@
 
 export const LEVEL_DATA = {
     level1: {
-        initialMoney: 100, 
+        initialMoney: 1000, 
         initialLives: 10,  
 
         waypoints: [

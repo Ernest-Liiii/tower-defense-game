@@ -416,9 +416,12 @@ export class GameScene extends Phaser.Scene {
         enemy.nextAttack = 0;   
         enemy.spawnTime = currentTime; 
 
+        // let enemy remember its speed
+        enemy.speed = config.speed;
+
         // 4. 計算走完路徑所需的時間 (時間 = 距離 / 速度)
         // 假設路徑總長度約為 1440 像素，乘以 1000 轉換為毫秒
-        const pathLength = 1440; 
+        const pathLength = this.path.getLength(); 
         const duration = (pathLength / config.speed) * 1000;
 
         // 5. 開始沿著路徑移動
@@ -426,31 +429,35 @@ export class GameScene extends Phaser.Scene {
             duration: duration, 
             rotateToPath: false,
             onComplete: () => {
-                // 敵人走到終點，扣玩家血量
-                if (enemy && enemy.active) {
-                    enemy.destroy(); 
-                    
-                    this.playerLives -= 1; 
-
-                    this.events.emit('updateLives', this.playerLives); // emit an event to update lives in UI
-
-                    // this.livesText.setText('❤️ 生命: ' + this.playerLives); 
-                    
-                    // 扣血飄字特效
-                    let dmgText = this.add.text(enemy.x, enemy.y - 20, '-1 生命', { fill: '#ff0000', fontStyle: 'bold' });
-                    this.tweens.add({ targets: dmgText, y: enemy.y - 50, alpha: 0, duration: 1000, onComplete: () => dmgText.destroy() });
-
-                    // 遊戲結束判定
-                    if (this.playerLives <= 0 && !this.isGameOver) {
-                        this.isGameOver = true;    
-                        this.physics.pause(); 
-                        this.tweens.pauseAll(); 
-
-                        this.events.emit('gameOver'); // emit an event to notify UI about game over
-                    }
-                }
+                this.onEnemyReachEnd(enemy);
             }
         });
+    }
+
+    // Called when an enemy reaches the end of the path
+    onEnemyReachEnd(enemy) {
+        if (enemy && enemy.active) {
+            enemy.destroy(); 
+                    
+            this.playerLives -= 1; 
+
+            this.events.emit('updateLives', this.playerLives); // emit an event to update lives in UI
+
+            // this.livesText.setText('❤️ 生命: ' + this.playerLives); 
+                    
+            // 扣血飄字特效
+            let dmgText = this.add.text(enemy.x, enemy.y - 20, '-1 生命', { fill: '#ff0000', fontStyle: 'bold' });
+            this.tweens.add({ targets: dmgText, y: enemy.y - 50, alpha: 0, duration: 1000, onComplete: () => dmgText.destroy() });
+
+            // 遊戲結束判定
+            if (this.playerLives <= 0 && !this.isGameOver) {
+                this.isGameOver = true;    
+                this.physics.pause(); 
+                this.tweens.pauseAll(); 
+
+                this.events.emit('gameOver'); // emit an event to notify UI about game over
+            }
+        }
     }
 
     updatePhaserPath() {
@@ -500,6 +507,83 @@ export class GameScene extends Phaser.Scene {
         const greenWidth = width * (currentHp / maxHp);
         this.hpGraphics.fillStyle(0x00ff00, 1);
         this.hpGraphics.fillRect(startX, startY, greenWidth, height);
+    }
+
+    // updaye enemies' path compulsorily called after building or demolishing towers, 
+    // to make sure enemies always take the correct path
+    updateEnemiesPath() {
+        this.enemies.getChildren().forEach(enemy => {
+            if (!enemy.active) return;
+
+            // 1. stop!!!
+            enemy.stopFollow();
+
+            let targetIndex = 0;
+            let onSegment = false;
+
+            // 2. firstly, we try to find out if the enemy is still on the original path (but maybe just a bit off due to tower blocking), 
+            // if so, we can directly set the next target to be the next waypoint on the original path, without calculating distance to all waypoints
+            for (let i = 0; i < this.pathSystem.currentFullPath.length - 1; i++) {
+                let p1 = this.pathSystem.currentFullPath[i];
+                let p2 = this.pathSystem.currentFullPath[i + 1];
+                
+                let d1 = Phaser.Math.Distance.Between(enemy.x, enemy.y, p1.x, p1.y);
+                let d2 = Phaser.Math.Distance.Between(enemy.x, enemy.y, p2.x, p2.y);
+                let segmentLen = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+
+                // if the enemy is approximately on the line segment between p1 and p2 
+                // (considering a tolerance of < 2 pixels due to possible floating point inaccuracies in Phaser coordinates),
+                if (Math.abs((d1 + d2) - segmentLen) < 2) { 
+                    // if the enemy is close enough to the line segment, 
+                    // we consider it still on the original path and set the next target to be p2
+                    targetIndex = i + 1; 
+                    onSegment = true;
+                    break;
+                }
+            }
+
+            // 3. if the enemy is not on any of the original path segments, 
+            // it means it has been pushed off the path (e.g. by a tower being built right in front of it),
+            // in this case we will fall back to the original logic of finding the closest waypoint as the next target, 
+            // to avoid breaking the pathfinding completely
+            if (!onSegment) {
+                let minDistance = Infinity;
+                for (let i = 0; i < this.pathSystem.currentFullPath.length; i++) {
+                    let p = this.pathSystem.currentFullPath[i];
+                    let dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, p.x, p.y);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        targetIndex = i;
+                    }
+                }
+            }
+
+            // 4. we will create a new temporary path for this enemy, 
+            // starting from its current position, and then connecting to the remaining waypoints from targetIndex onwards
+            let remainingPath = this.add.path(enemy.x, enemy.y);
+            
+            // push the remaining waypoints into this new path
+            for (let i = targetIndex; i < this.pathSystem.currentFullPath.length; i++) {
+                let p = this.pathSystem.currentFullPath[i];
+                remainingPath.lineTo(p.x, p.y);
+            }
+
+            // 5. calculate the length of this remaining path, and based on the enemy's speed, 
+            // calculate how long it should take for the enemy to walk through this new path,
+            let remainingLength = remainingPath.getLength();
+            let newDuration = (remainingLength / enemy.speed) * 1000;
+
+            // 6. set the enemy to follow this new path with the new duration, 
+            // and make sure to call the same onComplete callback when it reaches the end,
+            enemy.setPath(remainingPath);
+            enemy.startFollow({
+                duration: newDuration,
+                rotateToPath: false,
+                onComplete: () => {
+                    this.onEnemyReachEnd(enemy);
+                }
+            });
+        });
     }
 
     // 原本寫在全域的輔助函數 (例如 getEnemyInRange, shoot) 

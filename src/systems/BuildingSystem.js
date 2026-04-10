@@ -65,6 +65,22 @@ export class BuildingSystem {
             this.scene.towers.forEach(t => { if(t.x === centerX && t.y === centerY) canBuild = false; });
             if(!canBuild) return;
 
+            let isEnemyOnTile = false;
+            if (this.scene.enemies && this.scene.enemies.children) {
+                this.scene.enemies.getChildren().forEach(enemy => {
+                    if (!enemy.active) return;
+                    // 计算敌人距离这个格子中心的距离
+                    let dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, centerX, centerY);
+                    // 如果距离小于半个格子大小 (20)，说明敌人正踩在这个格子上
+                    if (dist < 20) isEnemyOnTile = true;
+                });
+            }
+            if (isEnemyOnTile) {
+                let warning = this.scene.add.text(pointer.x, pointer.y - 20, '不能盖在敌人头上!', { fill: '#ff0000', fontStyle: 'bold' });
+                this.scene.time.delayedCall(1000, () => warning.destroy());
+                return;
+            }
+
             // 3. use this.scene.currentSelectedTower to detect the cost
             let towerConfig = TOWER_DATA[this.scene.currentSelectedTower];
             if (this.scene.playerMoney < towerConfig.cost) {
@@ -196,6 +212,9 @@ export class BuildingSystem {
             // update the map tiles for the paths
             this.scene.updateMapTiles();
 
+            // update the enemies' path to follow the new path
+            this.scene.updateEnemiesPath();
+
             // clean preview
             this.previewTower.destroy();
             this.previewRange.destroy();
@@ -298,6 +317,9 @@ export class BuildingSystem {
         this.scene.pathSystem.recalculatePath();
         this.scene.updatePhaserPath();
         this.scene.updateMapTiles();
+
+        // update the enemies' path to follow the new path
+        this.scene.updateEnemiesPath();
 
         this.hideTowerMenu();
     }
