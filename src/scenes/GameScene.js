@@ -64,6 +64,15 @@ export class GameScene extends Phaser.Scene {
         this.load.image('grass', 'assets/images/Grass.png');
         this.load.image('dirt', 'assets/images/Dirt.png');
 
+        // load the textures for the path points (start, turn, end)
+        this.load.image('start_point', 'assets/images/StartPoint.png');
+        this.load.image('turn_point', 'assets/images/TurnPoint.png');
+        this.load.image('end_point', 'assets/images/EndPoint.png');
+
+        // load the textures of the enemies
+        this.load.image('slime', 'assets/images/Slime.png');
+        this.load.image('ranged_goblin', 'assets/images/RangedGoblin.png');
+
         // load the textures of the towers
         this.load.image('water_tower', 'assets/images/WaterTower.png')
         this.load.image('gold_tower', 'assets/images/GoldTower.png')
@@ -115,6 +124,28 @@ export class GameScene extends Phaser.Scene {
                 });
             }
         }
+
+        this.pathSystem.waypoints.forEach((wp, index) => {
+            // 将网格坐标转换为像素坐标
+            let cx = wp.col * this.cellSize + this.cellSize / 2;
+            let cy = wp.row * this.cellSize + this.cellSize / 2;
+            
+            let textureKey = 'turn_point'; // 默认为中间的转折点/补给点
+            
+            if (index === 0) {
+                textureKey = 'start_point'; // 第一个是起点
+            } else if (index === this.pathSystem.waypoints.length - 1) {
+                textureKey = 'end_point';   // 最后一个是终点
+            }
+
+            // 在对应位置添加图片
+            let pointImage = this.add.image(cx, cy, textureKey);
+            pointImage.setDisplaySize(this.cellSize, this.cellSize);
+            
+            // 设置层级为 1，确保它们显示在草地/泥土(层级0)的上方，
+            // 但又在塔和怪物(默认更高层级)的下方
+            pointImage.setDepth(1); 
+        });
 
         if (!this.textures.exists('enemyTexture')) {
             const texGraphics = this.make.graphics({ x: 0, y: 0, add: false });
@@ -402,11 +433,18 @@ export class GameScene extends Phaser.Scene {
             return; 
         }
 
+        let textureToUse = config.textureKey ? config.textureKey : 'enemyTexture';
+
         // 2. 建立敵人實體並加入群組 (動態讀取起點座標)
         let startX = this.pathSystem.currentFullPath[0].x;
         let startY = this.pathSystem.currentFullPath[0].y;
-        let enemy = this.add.follower(this.path, startX, startY, 'enemyTexture');
+        let enemy = this.add.follower(this.path, startX, startY, textureToUse);
         this.enemies.add(enemy);
+
+        enemy.setDepth(2);
+        
+        // enemy.setDisplaySize(this.cellSize, this.cellSize);
+        enemy.setDisplaySize(30, 30);
         
         // 3. 套用設定檔裡的數值
         enemy.hp = config.hp; 
