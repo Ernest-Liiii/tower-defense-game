@@ -10,6 +10,7 @@ import { WaveSystem } from '../systems/WaveSystem.js';
 import { BuildingSystem } from '../systems/BuildingSystem.js';
 import { PathSystem } from '../systems/PathSystem.js';
 import { TimeSystem } from '../systems/TimeSystem.js';
+import { EnemyAttackSystem } from '../systems/EnemyAttackSystem.js';
 
 // import the data for levels and towers
 import { LEVEL_DATA } from '../config/level_data.js';
@@ -55,6 +56,9 @@ export class GameScene extends Phaser.Scene {
         // initialize the path system
         this.pathSystem = new PathSystem(this);
         this.pathSystem.init(currentLevelData);
+
+        // initialize the enemy attack system
+        this.enemyAttackSystem = new EnemyAttackSystem(this);
     }
 
     // 【新增】預載入遊戲素材
@@ -63,6 +67,8 @@ export class GameScene extends Phaser.Scene {
         // 請確保路徑和大小寫完全對應你的資料夾結構！
         this.load.image('grass', 'assets/images/Grass.png');
         this.load.image('dirt', 'assets/images/Dirt.png');
+        this.load.image('grass1', 'assets/images/Grass1.png');
+        this.load.image('dirt1', 'assets/images/Dirt1.png');
 
         // load the textures for the path points (start, turn, end)
         this.load.image('start_point', 'assets/images/StartPoint.png');
@@ -110,7 +116,10 @@ export class GameScene extends Phaser.Scene {
                 // 檢查這個格子的中心點，有沒有在我們動態計算出的路徑陣列裡？
                 let isPath = this.pathSystem.currentFullPath.some(p => p.x === cx && p.y === cy);
 
-                let textureKey = isPath ? 'dirt' : 'grass';
+                let isVariant = Math.random() < 0.15;
+
+                let baseKey = isPath ? 'dirt' : 'grass';
+                let textureKey = isVariant ? baseKey + '1' : baseKey;
 
                 let tile = this.add.image(cx, cy, textureKey);
                 tile.setDisplaySize(this.cellSize, this.cellSize);
@@ -120,7 +129,8 @@ export class GameScene extends Phaser.Scene {
                 this.mapTiles.push({
                     image: tile,
                     cx: cx,
-                    cy: cy
+                    cy: cy,
+                    isVariant: isVariant
                 });
             }
         }
@@ -346,53 +356,9 @@ export class GameScene extends Phaser.Scene {
                     tower.nextHealTime += 1000; 
                 }
             }
-
-            // ================= 【新增】敌人攻击防御塔逻辑 =================
-            this.enemies.getChildren().forEach(enemy => {
-                // 如果敌人还活着，并且攻击冷却好了 (2000毫秒/2秒 攻击一次)
-                if (enemy.active && currentTime > enemy.nextAttack) {
-                    
-                    let targetTower = null;
-                    let minDistance = enemy.attackRange; // 攻击范围 40
-                    
-                    // 遍历所有存活的塔，看看有没有在敌人嘴边的
-                    this.towers.forEach(towerItem => {
-                        if (towerItem.active) {
-                            let distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, towerItem.x, towerItem.y);
-                            if (distance <= minDistance) {
-                                targetTower = towerItem;
-                                minDistance = distance;
-                            }
-                        }
-                    });
-
-                    // 如果身边有塔，就咬它一口！
-                    if (targetTower) {
-                        targetTower.hp -= enemy.damage;
-                        
-                        // 飘红字显示塔掉血了
-                        let dmgText = this.add.text(targetTower.x, targetTower.y, '-' + enemy.damage, { fill: '#ff0000', fontStyle: 'bold' });
-                        this.tweens.add({ targets: dmgText, y: targetTower.y - 30, alpha: 0, duration: 800, onComplete: () => dmgText.destroy() });
-                        
-                        // 如果塔的血量归零，塔就被拆毁了！
-                        if (targetTower.hp <= 0) {
-                            targetTower.destroy(); // 销毁塔的图像
-                            targetTower.active = false; 
-                        }
-                        
-                        // 重置敌人的攻击冷却时间 (当前时间 + 2秒)
-                        if (currentTime - enemy.nextAttack > 2000) {
-                            enemy.nextAttack = currentTime + 2000;
-                        } else {
-                            enemy.nextAttack += 2000;
-                        }
-                    }
-                }
-            });
-            
-            // 【清理无效的塔】把已经被拆掉的塔从我们的管理数组里踢出去，防止报错
-            this.towers = this.towers.filter(t => t.active);
         });
+
+        this.enemyAttackSystem.update(currentTime); // 调用敌人攻击系统的更新方法
 
         // ================= 3. 子弹追踪逻辑 =================
         this.bullets.getChildren().forEach(bullet => {
@@ -450,7 +416,8 @@ export class GameScene extends Phaser.Scene {
         enemy.hp = config.hp; 
         enemy.maxHp = config.hp;
         enemy.damage = config.damage;
-        enemy.attackRange = 40; 
+        enemy.attackRange = config.attackRange; 
+        enemy.attackCooldown = config.attackCooldown;
         enemy.nextAttack = 0;   
         enemy.spawnTime = currentTime; 
 
@@ -522,12 +489,11 @@ export class GameScene extends Phaser.Scene {
             // check if the center of this tile is in the current path
             let isPath = this.pathSystem.currentFullPath.some(p => p.x === tileData.cx && p.y === tileData.cy);
 
+            let baseKey = isPath ? 'dirt' : 'grass';
+            let textureKey = tileData.isVariant ? baseKey + '1' : baseKey;
+            
             // change the texture of this tile based on whether it's a path tile or not
-            if (isPath) {
-                tileData.image.setTexture('dirt');
-            } else {
-                tileData.image.setTexture('grass');
-            }
+            tileData.image.setTexture(textureKey).setDisplaySize(this.cellSize, this.cellSize);
         });
     }
 

@@ -6,7 +6,9 @@ const ENEMY_DATA = {
         hp: 2000, 
         speed: 40,   
         damage: 150,
-        textureKey: 'slime'
+        textureKey: 'slime',
+        attackRange: 45,
+        attackCooldown: 12000
     }, 
     
     // 基础远程兵：血量1500 [cite: 69]，伤害100 [cite: 72]
@@ -14,7 +16,9 @@ const ENEMY_DATA = {
         hp: 1500, 
         speed: 26.6, 
         damage: 100,
-        textureKey: 'ranged_goblin'
+        textureKey: 'ranged_goblin',
+        attackRange: 150, 
+        attackCooldown: 4000
     }  
 };
 
