@@ -11,46 +11,35 @@ export class GameUI extends Phaser.Scene {
         let uiPanel = this.add.rectangle(900, 300, 200, 600, 0x2c3e50).setInteractive(); 
 
         this.add.text(820, 20, '控制面板', { fontSize: '24px', fill: '#ffffff', fontStyle: 'bold' });
-        this.moneyText = this.add.text(820, 70, '💰 费用: 0', { fontSize: '20px', fill: '#ffd700', fontStyle: 'bold' });
-        this.livesText = this.add.text(820, 100, '❤️ 生命: 0', { fontSize: '20px', fill: '#ff4757', fontStyle: 'bold' });
-        this.waveText = this.add.text(820, 130, '🌊 波次: ? / ?', { fontSize: '20px', fill: '#0984e3', fontStyle: 'bold' });
-        this.add.rectangle(900, 170, 160, 2, 0x7f8fa6);
+        this.moneyText = this.add.text(820, 60, '💰 费用: 0', { fontSize: '18px', fill: '#ffd700', fontStyle: 'bold' });
+        this.livesText = this.add.text(820, 90, '❤️ 生命: 0', { fontSize: '18px', fill: '#ff4757', fontStyle: 'bold' });
+        this.waveText = this.add.text(820, 120, '🌊 波次: ? / ?', { fontSize: '18px', fill: '#0984e3', fontStyle: 'bold' });
+        
+        this.add.rectangle(900, 150, 160, 2, 0x7f8fa6);
 
-        let btnGold = this.add.text(820, 190, '🟡 金塔 ($50)', { fontSize: '18px', fill: '#feca57' }).setInteractive();
-        let btnWater = this.add.text(820, 230, '🔵 水塔 ($50)', { fontSize: '18px', fill: '#48dbfb' }).setInteractive();
-        let btnFire = this.add.text(820, 270, '🔴 火塔 ($100)', { fontSize: '18px', fill: '#ff6b6b' }).setInteractive();
-        this.selectedText = this.add.text(820, 310, '👉 當前: 火塔', { fontSize: '18px', fill: '#1dd1a1', fontStyle: 'bold' });
+        // ===== 【修改点 1】：新增木塔和土塔的按钮 =====
+        let btnGold = this.add.text(820, 165, '🟡 金塔 ($50)', { fontSize: '18px', fill: '#feca57' }).setInteractive();
+        let btnWater = this.add.text(820, 200, '🔵 水塔 ($50)', { fontSize: '18px', fill: '#48dbfb' }).setInteractive();
+        let btnFire = this.add.text(820, 235, '🔴 火塔 ($100)', { fontSize: '18px', fill: '#ff6b6b' }).setInteractive();
+        let btnWood = this.add.text(820, 270, '🟢 木塔 ($75)', { fontSize: '18px', fill: '#2ecc71' }).setInteractive();
+        let btnEarth = this.add.text(820, 305, '🟤 土塔 ($120)', { fontSize: '18px', fill: '#e67e22' }).setInteractive();
+        
+        // 【修改点 2】：把下面的信息栏整体往下移动
+        this.selectedText = this.add.text(820, 345, '👉 當前: 火塔', { fontSize: '18px', fill: '#1dd1a1', fontStyle: 'bold' });
+        this.add.rectangle(900, 380, 160, 2, 0x7f8fa6); // 分隔线
+        this.add.text(820, 390, '塔楼详细信息', { fontSize: '18px', fill: '#ffffff', fontStyle: 'bold' });
 
-        // left an area to show tower descriptions when hovering over buttons
-        this.add.rectangle(900, 400, 160, 2, 0x7f8fa6); // 分隔线
-        this.add.text(820, 410, '塔楼详细信息', { fontSize: '18px', fill: '#ffffff', fontStyle: 'bold' });
-
-        // initialize with default description (fire tower)
-        this.towerInfoText = this.add.text(820, 430, TOWER_DATA.fire.description, { 
-            fontSize: '16px', 
-            fill: '#ffffff',
-            wordWrap: { 
-                width: 160, 
-                useAdvancedWrap: true 
-            }
+        this.towerInfoText = this.add.text(820, 420, TOWER_DATA.fire.description, { 
+            fontSize: '14px', fill: '#ffffff', wordWrap: { width: 160, useAdvancedWrap: true }
         });
 
-        let pauseBtn = this.add.text(900, 550, '⏸ 暫停遊戲', { 
-            fontSize: '20px', fill: '#ffffff', backgroundColor: '#34495e', padding: { x: 10, y: 5 }
-        }).setOrigin(0.5).setInteractive();
+        // 底部按钮保持不变
+        let pauseBtn = this.add.text(900, 550, '⏸ 暫停遊戲', { fontSize: '20px', fill: '#ffffff', backgroundColor: '#34495e', padding: { x: 10, y: 5 } }).setOrigin(0.5).setInteractive();
+        let speedBtn = this.add.text(840, 570, 'x2', { fontSize: '16px', fill: '#fff', backgroundColor: '#e17055', padding: {x:5, y:5} }).setInteractive();
+        let nextWaveBtn = this.add.text(880, 570, '⏭ 迎战', { fontSize: '16px', fill: '#fff', backgroundColor: '#d63031', padding: {x:5, y:5} }).setInteractive();
 
-        let speedBtn = this.add.text(840, 570, 'x2', { 
-            fontSize: '16px', fill: '#fff', backgroundColor: '#e17055', padding: {x:5, y:5} 
-        }).setInteractive();
-
-        let nextWaveBtn = this.add.text(880, 570, '⏭ 迎战', { 
-            fontSize: '16px', fill: '#fff', backgroundColor: '#d63031', padding: {x:5, y:5} 
-        }).setInteractive();
-
-        // 2. get reference to GameScene to read initial values and send commands
         const gameScene = this.scene.get('GameScene');
 
-        // initialize UI with GameScene data
         this.moneyText.setText('💰 費用: ' + gameScene.playerMoney);
         this.livesText.setText('❤️ 生命: ' + gameScene.playerLives);
 
@@ -60,56 +49,35 @@ export class GameUI extends Phaser.Scene {
             this.waveText.setText(`🌊 波次: ${currentWave} / ${totalWaves}`);
         }
 
-        // 3. button interactions
-        pauseBtn.on('pointerdown', () => {
-            gameScene.scene.pause(); 
-            this.scene.launch('PauseScene'); 
-        });
+        // ===== 【修改点 3】：绑定所有塔的点击事件 =====
+        pauseBtn.on('pointerdown', () => { gameScene.scene.pause(); this.scene.launch('PauseScene'); });
+        
+        const selectTower = (type, name, data) => {
+            gameScene.currentSelectedTower = type;
+            this.selectedText.setText(`👉 當前: ${name}`);
+            this.towerInfoText.setText(data.description);
+        };
 
-        btnGold.on('pointerdown', () => { 
-            gameScene.currentSelectedTower = 'gold'; this.selectedText.setText('👉 當前: 金塔'); 
-            this.towerInfoText.setText(TOWER_DATA.gold.description);
-        });
-        btnWater.on('pointerdown', () => {
-             gameScene.currentSelectedTower = 'water'; this.selectedText.setText('👉 當前: 水塔'); 
-             this.towerInfoText.setText(TOWER_DATA.water.description);
-        });
-        btnFire.on('pointerdown', () => { 
-            gameScene.currentSelectedTower = 'fire'; this.selectedText.setText('👉 當前: 火塔'); 
-            this.towerInfoText.setText(TOWER_DATA.fire.description);
-        });
+        btnGold.on('pointerdown', () => selectTower('gold', '金塔', TOWER_DATA.gold));
+        btnWater.on('pointerdown', () => selectTower('water', '水塔', TOWER_DATA.water));
+        btnFire.on('pointerdown', () => selectTower('fire', '火塔', TOWER_DATA.fire));
+        btnWood.on('pointerdown', () => selectTower('wood', '木塔', TOWER_DATA.wood));
+        btnEarth.on('pointerdown', () => selectTower('earth', '土塔', TOWER_DATA.earth));
 
         let isFastForward = false;
         speedBtn.on('pointerdown', () => {
             isFastForward = !isFastForward;
-
-            let scale = isFastForward ? 2.0 : 1.0;
-
-            gameScene.timeSystem.setTimeScale(scale);
-
+            gameScene.timeSystem.setTimeScale(isFastForward ? 2.0 : 1.0);
             speedBtn.setText(isFastForward ? 'x1' : 'x2');
             speedBtn.setStyle({ backgroundColor: isFastForward ? '#00b894' : '#e17055' });
         });
 
-        nextWaveBtn.on('pointerdown', () => {
-            // 向 GameScene 发送指令
-            gameScene.events.emit('forceNextWave');
-        });
+        nextWaveBtn.on('pointerdown', () => gameScene.events.emit('forceNextWave'));
 
-        // 4. listen to GameScene events to update UI
-        gameScene.events.off('updateMoney');
-        gameScene.events.off('updateLives');
-        gameScene.events.off('updateWave');
-        gameScene.events.off('gameOver');
-        gameScene.events.off('levelWon');
-
+        gameScene.events.off('updateMoney'); gameScene.events.off('updateLives'); gameScene.events.off('updateWave'); gameScene.events.off('gameOver'); gameScene.events.off('levelWon');
         gameScene.events.on('updateMoney', (money) => this.moneyText.setText('💰 費用: ' + money));
         gameScene.events.on('updateLives', (lives) => this.livesText.setText('❤️ 生命: ' + lives));
-        gameScene.events.on('updateWave', (current, total) => {
-            this.waveText.setText(`🌊 波次: ${current} / ${total}`);
-        });
-
-        // 5. listen to game over and level won events to show appropriate screens
+        gameScene.events.on('updateWave', (current, total) => this.waveText.setText(`🌊 波次: ${current} / ${total}`));
         gameScene.events.on('gameOver', () => this.showGameOver());
         gameScene.events.on('levelWon', () => this.showVictory());
     }

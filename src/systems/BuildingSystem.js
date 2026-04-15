@@ -96,14 +96,19 @@ export class BuildingSystem {
             this.currentDragDir = 'up'; 
 
             // Create a preview tower
-            if (this.scene.currentSelectedTower === 'fire') {
-                this.previewTower = this.scene.add.image(centerX, centerY, 'fire_tower').setDisplaySize(this.scene.cellSize, this.scene.cellSize);
-            } else {
-                this.previewTower = this.scene.add.rectangle(centerX, centerY, 36, 36, towerConfig.color);
-            }
+            // if (this.scene.currentSelectedTower === 'fire') {
+            //     this.previewTower = this.scene.add.image(centerX, centerY, 'fire_tower').setDisplaySize(this.scene.cellSize, this.scene.cellSize);
+            // } else {
+            //     this.previewTower = this.scene.add.rectangle(centerX, centerY, 36, 36, towerConfig.color);
+            // }
+
+            let textureName = this.scene.currentSelectedTower + '_tower'; // 例如 'wood' + '_tower' = 'wood_tower'
+            this.previewTower = this.scene.add.image(centerX, centerY, textureName);
+            this.previewTower.setDisplaySize(this.scene.cellSize, this.scene.cellSize);
+
             this.previewTower.alpha = 0.5; 
             this.previewRange = this.scene.add.graphics();
-            drawDirectionalRange(this.previewRange, centerX, centerY, this.currentDragDir, this.scene.currentSelectedTower);
+            drawDirectionalRange(this.previewRange, centerX, centerY, this.currentDragDir, this.scene.currentSelectedTower, towerConfig.range);
         });
 
         // ================= Stage 2: drag the mouse =================
@@ -121,7 +126,8 @@ export class BuildingSystem {
                 }
             }
 
-            drawDirectionalRange(this.previewRange, this.previewTower.x, this.previewTower.y, this.currentDragDir, this.scene.currentSelectedTower);
+            let towerConfig = TOWER_DATA[this.scene.currentSelectedTower];
+            drawDirectionalRange(this.previewRange, this.previewTower.x, this.previewTower.y, this.currentDragDir, this.scene.currentSelectedTower, towerConfig.range);
         });
 
         // ================= Stage 3: release the mouse =================
@@ -160,7 +166,6 @@ export class BuildingSystem {
             // Deduct costs and update the UI
             this.isDragging = false;
             this.scene.playerMoney -= towerConfig.cost;
-            // this.scene.moneyText.setText('💰 費用: ' + this.scene.playerMoney);
             this.scene.events.emit('updateMoney', this.scene.playerMoney); // emit an event to update money in UI
 
             // Logic Behind Building Physical Towers
@@ -180,7 +185,12 @@ export class BuildingSystem {
                 tower = this.scene.add.image(centerX, centerY, 'gold_tower');
                 tower.setDisplaySize(this.scene.cellSize, this.scene.cellSize); 
             } else {
-                tower = this.scene.add.rectangle(centerX, centerY, 36, 36, towerConfig.color);
+                let textureName = this.scene.currentSelectedTower + '_tower';
+                tower = this.scene.add.image(centerX, centerY, textureName);
+                tower.setDisplaySize(this.scene.cellSize, this.scene.cellSize);
+
+                tower.rangeGraphic = this.scene.add.graphics();
+                drawDirectionalRange(tower.rangeGraphic, centerX, centerY, this.currentDragDir, this.scene.currentSelectedTower, towerConfig.range, 0.15);
             }
 
             tower.type = this.scene.currentSelectedTower;
@@ -188,6 +198,9 @@ export class BuildingSystem {
             tower.maxHp = towerConfig.hp;
             tower.damage = towerConfig.damage;
             tower.nextFire = 0;
+            tower.range = towerConfig.range;
+
+            tower.active = true;
 
             tower.setInteractive();     // 让塔可以被鼠标点击
             tower.isBuiltTower = true;  // 打上专属标记，方便识别

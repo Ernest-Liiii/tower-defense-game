@@ -11,6 +11,10 @@ export function shoot(scene, tower, target, bullets, isBuffed = false) {
     // if the bullet is buffed, it will have 50% more damage than normal
     bullet.damage = isBuffed ? tower.damage * 1.5 : tower.damage; 
     bullet.target = target; 
+
+    bullet.towerType = tower.type; // 记录发射这个子弹的塔的类型，后续可以根据这个属性来决定子弹的行为（例如木头子弹会有特殊效果）
+
+    return bullet;
 }
 
 // this is a helper function to handle the logic when a bullet kills an enemy
@@ -39,6 +43,7 @@ export function shoot(scene, tower, target, bullets, isBuffed = false) {
 //         enemy.destroy(); 
 //     }
 // }
+
 export function hitEnemy(bullet, enemy) {
     let damage = bullet.damage;
     bullet.destroy(); 
