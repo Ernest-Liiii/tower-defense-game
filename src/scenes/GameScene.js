@@ -107,7 +107,7 @@ export class GameScene extends Phaser.Scene {
 
         this.scene.launch('GameUI');  // launch the UI scene
 
-        this.add.text(20, 20, '关卡 1：教学关卡', { fontSize: '20px', fill: '#00ff00' });
+        this.add.text(20, 20, 'Level 1: Tutorial Level', { fontSize: '20px', fill: '#00ff00' });
         
         if (this.pathSystem.currentFullPath.length > 0) {
             let startPoint = this.pathSystem.currentFullPath[0];
@@ -218,7 +218,7 @@ export class GameScene extends Phaser.Scene {
                 enemy.slowEndTime = currentTime + 3000;
                 
                 // 飘个绿字提示玩家
-                let debuffText = this.add.text(enemy.x, enemy.y - 20, '中毒/减速!', { fill: '#2ecc71', fontSize: '12px' });
+                let debuffText = this.add.text(enemy.x, enemy.y - 20, 'Poisoned/Slowed', { fill: '#2ecc71', fontSize: '12px' });
                 this.tweens.add({ targets: debuffText, y: enemy.y - 40, alpha: 0, duration: 800, onComplete: () => debuffText.destroy() });
             }
 
@@ -378,7 +378,7 @@ export class GameScene extends Phaser.Scene {
             // this.livesText.setText('❤️ 生命: ' + this.playerLives); 
                     
             // 扣血飄字特效
-            let dmgText = this.add.text(enemy.x, enemy.y - 20, '-1 生命', { fill: '#ff0000', fontStyle: 'bold' });
+            let dmgText = this.add.text(enemy.x, enemy.y - 20, '-1 lives', { fill: '#ff0000', fontStyle: 'bold' });
             this.tweens.add({ targets: dmgText, y: enemy.y - 50, alpha: 0, duration: 1000, onComplete: () => dmgText.destroy() });
 
             // 遊戲結束判定

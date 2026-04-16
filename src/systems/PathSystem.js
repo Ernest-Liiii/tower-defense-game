@@ -3,38 +3,38 @@ export class PathSystem {
     constructor(scene) {
         this.scene = scene;
         this.cellSize = 40;
-        this.cols = 800 / this.cellSize; // 20列
-        this.rows = 600 / this.cellSize; // 15行
+        this.cols = 800 / this.cellSize; // 20 columns
+        this.rows = 600 / this.cellSize; // 15 rows
         
         this.waypoints = [];
-        this.currentFullPath = []; // 儲存當前計算出的完整像素路徑
+        this.currentFullPath = []; // Store the current calculated complete pixel path
     }
 
-    // 初始化讀取關卡的航點
+    // Initialize and read waypoints from level data
     init(levelData) {
         this.waypoints = levelData.waypoints;
-        this.recalculatePath(); // 遊戲一開始先計算一次初始路徑
+        this.recalculatePath(); // Calculate initial path once at game start
     }
 
-    // 重新計算完整路徑
+    // Recalculate the complete path
     recalculatePath() {
         let fullPath = [];
         
-        // 依序計算每兩個相鄰航點之間的路徑 (例如：起點->點1, 點1->點2...)
+        // Calculate path between each pair of adjacent waypoints (e.g., start->point1, point1->point2...)
         for (let i = 0; i < this.waypoints.length - 1; i++) {
             let startNode = this.waypoints[i];
             let endNode = this.waypoints[i + 1];
             
-            // 呼叫 BFS 尋路演算法
+            // Call BFS pathfinding algorithm
             let pathSegment = this.findPathBFS(startNode, endNode);
             
-            // 如果有一段路徑找不到 (被塔完全堵死了)，回傳 false
+            // If a path segment cannot be found (blocked completely by towers), return false
             if (!pathSegment) {
-                console.warn("路徑被堵死了！");
+                console.warn("Path is completely blocked!");
                 return false; 
             }
             
-            // 將這段路徑加入總路徑中 (避免重複加入節點)
+            // Add this path segment to the total path (avoid duplicating nodes)
             if (i === 0) {
                 fullPath = fullPath.concat(pathSegment);
             } else {
@@ -42,41 +42,41 @@ export class PathSystem {
             }
         }
 
-        // 將網格座標 (col, row) 轉換為遊戲中的像素座標 (x, y)
+        // Convert grid coordinates (col, row) to pixel coordinates (x, y)
         this.currentFullPath = fullPath.map(node => ({
             x: node.col * this.cellSize + this.cellSize / 2,
             y: node.row * this.cellSize + this.cellSize / 2
         }));
 
-        // 開發除錯用：在畫面上畫出路徑
+        // Development debug: draw path on screen
         // this.drawDebugPath();
         
-        return true; // 成功找到路徑
+        return true; // Successfully found path
     }
 
-    // 核心尋路演算法 (Breadth-First Search)
+    // Core pathfinding algorithm (Breadth-First Search)
     findPathBFS(start, target) {
         let queue = [start];
         let visited = new Set();
-        let parentMap = new Map(); // 用來回溯路徑
+        let parentMap = new Map(); // Used to backtrack path
 
-        // 建立一個函數來生成 Set 的唯一 Key
+        // Create a function to generate unique key for Set
         const toKey = (col, row) => `${col},${row}`;
         visited.add(toKey(start.col, start.row));
 
-        // 檢查該格子是否可以走 (沒有超出邊界，且沒有防禦塔)
+        // Check if a cell is walkable (within bounds and no defense tower)
         const isWalkable = (col, row) => {
             if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
             
-            // 將網格座標轉回像素座標，檢查場上的塔
+            // Convert grid coordinates back to pixel coordinates, check for towers
             let pixelX = col * this.cellSize + this.cellSize / 2;
             let pixelY = row * this.cellSize + this.cellSize / 2;
             
             let hasTower = this.scene.towers.some(t => t.x === pixelX && t.y === pixelY);
-            return !hasTower; // 沒有塔才可以走
+            return !hasTower; // Can walk only if no tower
         };
 
-        // 四個移動方向：上, 下, 左, 右
+        // Four movement directions: up, down, left, right
         const directions = [
             { c: 0, r: -1 }, { c: 0, r: 1 }, 
             { c: -1, r: 0 }, { c: 1, r: 0 }
@@ -85,7 +85,7 @@ export class PathSystem {
         while (queue.length > 0) {
             let current = queue.shift();
 
-            // 抵達目標！開始回溯路徑
+            // Reached target! Start backtracking path
             if (current.col === target.col && current.row === target.row) {
                 let path = [];
                 let curr = current;
@@ -93,10 +93,10 @@ export class PathSystem {
                     path.push(curr);
                     curr = parentMap.get(toKey(curr.col, curr.row));
                 }
-                return path.reverse(); // 因為是從終點回溯，所以要反轉陣列
+                return path.reverse(); // Reverse array since we backtracked from end
             }
 
-            // 探索四個方向
+            // Explore four directions
             for (let dir of directions) {
                 let nextCol = current.col + dir.c;
                 let nextRow = current.row + dir.r;
@@ -106,19 +106,19 @@ export class PathSystem {
                     visited.add(nextKey);
                     let nextNode = { col: nextCol, row: nextRow };
                     queue.push(nextNode);
-                    parentMap.set(nextKey, current); // 記錄從哪裡來的
+                    parentMap.set(nextKey, current); // Record where it came from
                 }
             }
         }
 
-        return null; // 找不到路徑 (被堵死)
+        return null; // Path not found (blocked)
     }
 
-    // (測試用) 在畫面上畫出目前的路線
+    // (Testing only) Draw current route on screen
     drawDebugPath() {
         if (this.debugGraphics) this.debugGraphics.destroy();
         this.debugGraphics = this.scene.add.graphics();
-        this.debugGraphics.lineStyle(4, 0x00ff00, 0.5); // 半透明綠色線條
+        this.debugGraphics.lineStyle(4, 0x00ff00, 0.5); // Semi-transparent green line
 
         if (this.currentFullPath.length > 0) {
             this.debugGraphics.beginPath();

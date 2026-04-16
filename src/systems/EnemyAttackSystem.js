@@ -1,23 +1,21 @@
-// this file is used to control how enemies can attack my tower
-
 export class EnemyAttackSystem {
     constructor(scene) {
-        // 保存对主场景的引用，以便访问 this.scene.enemies, this.scene.towers 等
+        // Save reference to main scene to access this.scene.enemies, this.scene.towers, etc.
         this.scene = scene; 
     }
 
     update(currentTime) {
-        // 防呆检查：如果场景、敌人组或塔数组不存在，直接跳过
+        // Sanity check: if scene, enemies, or towers don't exist, skip
         if (!this.scene || !this.scene.enemies || !this.scene.towers) return;
 
         this.scene.enemies.getChildren().forEach(enemy => {
-            // 如果敌人还活着，并且攻击冷却好了
+            // If enemy is alive and attack cooldown is ready
             if (enemy.active && currentTime > enemy.nextAttack) {
                 
                 let targetTower = null;
-                let minDistance = enemy.attackRange; // 默认攻击范围
+                let minDistance = enemy.attackRange; // Default attack range
                 
-                // 遍历所有存活的塔，寻找攻击目标
+                // Iterate through all active towers to find attack target
                 this.scene.towers.forEach(towerItem => {
                     if (towerItem.active) {
                         let distance = Phaser.Math.Distance.Between(enemy.x, enemy.y, towerItem.x, towerItem.y);
@@ -28,23 +26,23 @@ export class EnemyAttackSystem {
                     }
                 });
 
-                // 如果找到目标，执行攻击
+                // If target found, execute attack
                 if (targetTower) {
                     targetTower.hp -= enemy.damage;
                     
-                    // 飘红字显示塔掉血了
+                    // Show red floating damage text
                     let dmgText = this.scene.add.text(targetTower.x, targetTower.y, '-' + enemy.damage, { fill: '#ff0000', fontStyle: 'bold' });
                     this.scene.tweens.add({ targets: dmgText, y: targetTower.y - 30, alpha: 0, duration: 800, onComplete: () => dmgText.destroy() });
                     
-                    // 如果塔的血量归零，塔就被拆毁了！
+                    // If tower HP drops to zero, tower is destroyed!
                     if (targetTower.hp <= 0) {
-                        targetTower.destroy(); // 销毁塔的图像
+                        targetTower.destroy(); // Destroy tower image
                         targetTower.active = false; 
 
                         this.scene.towers = this.scene.towers.filter(t => t !== targetTower);
                         
-                        // 【优化建议】如果塔被摧毁，原来被挡住的路可能通了，
-                        // 你可以调用场景的方法重新计算敌人的路径：
+                        // If tower is destroyed, previously blocked path may open
+                        // You can call scene method to recalculate enemy path:
                         if (this.scene.updateEnemiesPath) {
                             this.scene.pathSystem.recalculatePath();
                             this.scene.updatePhaserPath();
@@ -53,7 +51,7 @@ export class EnemyAttackSystem {
                         }
                     }
                     
-                    // 重置敌人的攻击冷却时间
+                    // Reset enemy attack cooldown
                     if (currentTime - enemy.nextAttack > enemy.attackCooldown) {
                         enemy.nextAttack = currentTime + enemy.attackCooldown;
                     } else {
@@ -63,7 +61,7 @@ export class EnemyAttackSystem {
             }
         });
         
-        // 【清理无效的塔】把已经被拆掉的塔从主场景的管理数组里踢出去
+        // Clean up invalid towers: remove destroyed towers from scene management array
         this.scene.towers = this.scene.towers.filter(t => t.active);
     }
 }

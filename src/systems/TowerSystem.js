@@ -53,7 +53,7 @@ export class TowerSystem {
         if (currentTime > tower.nextFire) {
             let target = getEnemyInRange(tower, this.scene.enemies.getChildren());
             if (target) {
-                // 判断水塔 Buff 的逻辑也可以封装成一个辅助函数
+                // Water tower buff logic could be encapsulated into helper function too
                 // let isBuffed = this.checkWaterBuff(tower); 
                 shoot(this.scene, tower, target, this.scene.bullets);
                 
@@ -86,7 +86,7 @@ export class TowerSystem {
     }
 
     handleWoodTower(tower, currentTime) {
-        // 木塔的攻击频率可以慢一点（例如 800ms）
+        // Wood tower attack frequency is slower (e.g., 800ms)
         if (currentTime > tower.nextFire) {
             let target = getEnemyInRange(tower, this.scene.enemies.getChildren());
             if (target) {
@@ -99,25 +99,25 @@ export class TowerSystem {
     }
 
     handleEarthTower(tower, currentTime) {
-        // 土塔：每 3 秒发动一次地震，眩晕周围所有敌人
+        // Earth tower: triggers earthquake every 3 seconds, stuns all nearby enemies
         if (currentTime > tower.nextFire) {
             let hitAny = false;
             
             this.scene.enemies.getChildren().forEach(enemy => {
                 if (enemy.active && this.isInRange(tower, enemy, tower.range)) {
                     hitAny = true;
-                    // 挂载眩晕状态
+                    // Apply stun status
                     enemy.isStunned = true;
-                    enemy.stunEndTime = currentTime + 1000; // 眩晕 1 秒
+                    enemy.stunEndTime = currentTime + 1000; // Stun for 1 second
                     
-                    // Phaser 中停止敌人沿路径移动的内置方法
+                    // Built-in Phaser method to stop enemy path following
                     if (enemy.pauseFollow) enemy.pauseFollow();
                     
-                    this.showFloatingText(enemy.x, enemy.y, '💫 眩晕', '#e67e22');
+                    this.showFloatingText(enemy.x, enemy.y, '💫 Stunned', '#e67e22');
                 }
             });
 
-            // 如果震到了人，进入 5 秒冷却；如果没震到人，2 秒后再侦测
+            // If hit any enemies, 5 second cooldown; if not, check again in 2 seconds
             tower.nextFire = currentTime + (hitAny ? 5000 : 2000);
         }
     }
@@ -152,30 +152,30 @@ export class TowerSystem {
         this.scene.enemies.getChildren().forEach(enemy => {
             if (!enemy.active) return;
 
-            // 1. 结算眩晕 (Stun)
+            // 1. Resolve Stun status
             if (enemy.isStunned && currentTime > enemy.stunEndTime) {
                 enemy.isStunned = false;
-                if (enemy.resumeFollow) enemy.resumeFollow(); // 恢复移动
+                if (enemy.resumeFollow) enemy.resumeFollow(); // Resume movement
             }
 
-            // 2. 结算减速 (Slow)
+            // 2. Resolve Slow status
             if (enemy.isSlowed) {
                 if (currentTime > enemy.slowEndTime) {
                     enemy.isSlowed = false;
-                    // 恢复正常速度 (Phaser follower 的速度由 pathTween 的 timeScale 控制)
+                    // Restore normal speed (Phaser follower speed controlled by pathTween timeScale)
                     if (enemy.pathTween) enemy.pathTween.timeScale = 1; 
                 } else if (!enemy.isStunned) {
-                    // 如果没被眩晕，且处于减速状态，速度减半
+                    // If not stunned and slowed, reduce speed to half
                     if (enemy.pathTween) enemy.pathTween.timeScale = 0.5;
                 }
             }
 
-            // 3. 结算中毒 (Poison DoT)
+            // 3. Resolve Poison DoT (Damage over Time)
             if (enemy.isPoisoned) {
                 if (currentTime > enemy.poisonEndTime) {
                     enemy.isPoisoned = false;
                 } else if (currentTime > enemy.nextPoisonTick) {
-                    let poisonDmg = 15; // 每次毒发伤害
+                    let poisonDmg = 15; // Poison damage per tick
                     enemy.hp -= poisonDmg;
                     this.showFloatingText(enemy.x, enemy.y, '-' + poisonDmg, '#8e44ad');
                     
@@ -184,7 +184,7 @@ export class TowerSystem {
                         this.scene.playerMoney += 10;
                         this.scene.events.emit('updateMoney', this.scene.playerMoney);
                     } else {
-                        enemy.nextPoisonTick = currentTime + 500; // 每 0.5 秒扣一次血
+                        enemy.nextPoisonTick = currentTime + 500; // Damage every 0.5 seconds
                     }
                 }
             }

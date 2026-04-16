@@ -40,8 +40,8 @@ export class MusicSystem {
         });
     }
 
-    // this function will be used when the player open the pasueScene, 
-    // then the bgm will be paused, and when the player close the pauseScene, the bgm will be resumed
+    // Function called when player opens pause scene
+    // BGM will be paused, and when player closes pause scene, BGM will resume
     pauseBGM(activeScene = null) {
         if (this.currentBGM && this.currentBGM.isPlaying) {
             let tweenScene = activeScene ? activeScene : this.scene;
@@ -58,8 +58,8 @@ export class MusicSystem {
         }
     }
 
-    // this function will be used when the player close the pauseScene, 
-    // then the bgm will be resumed
+    // Function called when player closes pause scene
+    // BGM will be resumed
     resumeBGM(activeScene = null) {
         if (this.currentBGM) {
             let tweenScene = activeScene ? activeScene : this.scene;
@@ -78,19 +78,19 @@ export class MusicSystem {
         }
     }
 
-    // this function will be used when the player open the gameoverScene,
-    // then the bgm will be stopped, and when the player close the gameoverScene, the bgm will be played again
+    // Function called when player opens game over scene
+    // BGM will be stopped, and when player closes game over scene, BGM will play again
     stopBGM(immediate = false) {
         if (this.currentBGM) {
             this.scene.tweens.killTweensOf(this.currentBGM);
 
             if (immediate) {
-                // 强制立即停止并销毁，不播任何动画！
+                // Force stop and destroy immediately without animation!
                 this.currentBGM.stop();
-                this.currentBGM.destroy(); // 释放内存
+                this.currentBGM.destroy(); // Free memory
                 this.currentBGM = null;
             } else {
-                // 正常的淡出停止
+                // Normal fade out stop
                 this.scene.tweens.add({
                     targets: this.currentBGM,
                     volume: 0,

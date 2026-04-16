@@ -6,34 +6,34 @@ export const LEVEL_DATA = {
         initialLives: 10,  
 
         waypoints: [
-            { col: 0, row: 2 },   // 起點 (左側)
-            { col: 14, row: 2 },  // 補給點 1 (右上)
-            { col: 14, row: 9 },  // 補給點 2 (右下)
-            { col: 5, row: 9 },   // 補給點 3 (左下)
-            { col: 5, row: 14 }   // 終點 (底部)
+            { col: 0, row: 2 },   // Start Point (Left)
+            { col: 14, row: 2 },  // Supply Point 1 (Right Top)
+            { col: 14, row: 9 },  // Supply Point 2 (Right Bottom)
+            { col: 5, row: 9 },   // Supply Point 3 (Left Bottom)
+            { col: 5, row: 14 }   // End Point (Bottom)
         ],
         
-        // 全新的波次定義
+        // New wave definitions
         waves: [
-            // 第一波：純粹的新手教學，只出幾隻基礎近戰兵
+            // Wave 1: Basic tutorial with only melee units
             {
-                startDelay: 2000, // 這波開始前的準備時間 (2秒)
+                startDelay: 2000, // Preparation time before this wave (2 seconds)
                 enemies: [
-                    { type: 'melee', amount: 5, interval: 1500 } // 出 5 隻近戰兵，每 1.5 秒出一隻
+                    { type: 'melee', amount: 5, interval: 1500 } // Spawn 5 melee units, 1 every 1.5 seconds
                 ]
             },
             
-            // 第二波：數量增加，且開始混搭遠程兵
+            // Wave 2: Increased quantity and mixed with ranged units
             {
-                startDelay: 5000, // 第一波清空後，給玩家 5 秒準備
+                startDelay: 5000, // 5 seconds after wave 1 is cleared
                 enemies: [
                     { type: 'melee', amount: 8, interval: 1200 }, 
-                    // 【進階設定】delay 代表在「這波開始後」延遲多久才開始出這種類型的怪
+                    // [Advanced Setting] delay = how long after wave starts to spawn this enemy type
                     { type: 'ranged', amount: 3, interval: 2000, delay: 5000 } 
                 ]
             },
 
-            // 第三波：大軍壓境
+            // Wave 3: Major assault
             {
                 startDelay: 8000, 
                 enemies: [
@@ -48,34 +48,34 @@ export const LEVEL_DATA = {
         initialLives: 15,  
 
         waypoints: [
-            { col: 0, row: 2 },   // 起點 (左側)
-            { col: 12, row: 3 },  // 補給點 1 (右上)
-            { col: 14, row: 8 },  // 補給點 2 (右下)
-            { col: 5, row: 9 },   // 補給點 3 (左下)
-            { col: 5, row: 4 }   // 終點 (底部)
+            { col: 0, row: 2 },   // Start Point (Left)
+            { col: 12, row: 3 },  // Supply Point 1 (Right Top)
+            { col: 14, row: 8 },  // Supply Point 2 (Right Bottom)
+            { col: 5, row: 9 },   // Supply Point 3 (Left Bottom)
+            { col: 5, row: 4 }   // End Point (Bottom)
         ],
         
-        // 全新的波次定義
+        // New wave definitions
         waves: [
-            // 第一波：純粹的新手教學，只出幾隻基礎近戰兵
+            // Wave 1: Basic tutorial with only melee units
             {
-                startDelay: 2000, // 這波開始前的準備時間 (2秒)
+                startDelay: 2000, // Preparation time before this wave (2 seconds)
                 enemies: [
-                    { type: 'melee', amount: 5, interval: 1500 } // 出 5 隻近戰兵，每 1.5 秒出一隻
+                    { type: 'melee', amount: 5, interval: 1500 } // Spawn 5 melee units, 1 every 1.5 seconds
                 ]
             },
             
-            // 第二波：數量增加，且開始混搭遠程兵
+            // Wave 2: Increased quantity and mixed with ranged units
             {
-                startDelay: 5000, // 第一波清空後，給玩家 5 秒準備
+                startDelay: 5000, // 5 seconds after wave 1 is cleared
                 enemies: [
                     { type: 'melee', amount: 8, interval: 1200 }, 
-                    // 【進階設定】delay 代表在「這波開始後」延遲多久才開始出這種類型的怪
+                    // [Advanced Setting] delay = how long after wave starts to spawn this enemy type
                     { type: 'ranged', amount: 3, interval: 2000, delay: 5000 } 
                 ]
             },
 
-            // 第三波：大軍壓境
+            // Wave 3: Major assault
             {
                 startDelay: 8000, 
                 enemies: [

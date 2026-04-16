@@ -47,7 +47,7 @@ export function getEnemyInRange(tower, enemies) {
 export function drawDirectionalRange(graphics, cx, cy, dir, type, range = 0, alpha = 0.3) {
     graphics.clear();
 
-    // 1. 火塔逻辑 (方形 3x3 范围)
+    // 1. Fire tower logic (square 3x3 range)
     if (type === 'fire') {
         graphics.fillStyle(0xe74c3c, alpha);
         let minX, minY, width = 120, height = 120; 
@@ -57,14 +57,14 @@ export function drawDirectionalRange(graphics, cx, cy, dir, type, range = 0, alp
         else if (dir === 'right') { minX = cx - 20; minY = cy - 60; }
         graphics.fillRect(minX, minY, width, height);
     } 
-    // 2. 其他有攻击范围的塔 (圆形范围，例如木塔和土塔)
+    // 2. Other towers with attack range (circular range, e.g., Wood and Earth towers)
     else if (range > 0) {
-        // 根据塔的类型决定圆形的颜色
-        let color = 0xffffff; // 默认白色
-        if (type === 'wood') color = 0x2ecc71; // 木塔绿色
-        if (type === 'earth') color = 0xe67e22; // 土塔橙黄色
+        // Determine circle color based on tower type
+        let color = 0xffffff; // default white
+        if (type === 'wood') color = 0x2ecc71; // Wood tower green
+        if (type === 'earth') color = 0xe67e22; // Earth tower orange
 
         graphics.fillStyle(color, alpha);
-        graphics.fillCircle(cx, cy, range); // 绘制圆形范围
+        graphics.fillCircle(cx, cy, range); // Draw circular range
     }
 }

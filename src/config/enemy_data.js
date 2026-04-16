@@ -1,7 +1,7 @@
-// this file is used to store the information of the enemy
+// this file is used to store the information of enemies
 
 const ENEMY_DATA = {
-    // 基础近战兵：血量2000 [cite: 63]，伤害150 [cite: 66] (速度设为40代表每秒走1格)
+    // Basic Melee Unit: HP 2000 [cite: 63], Damage 150 [cite: 66] (speed 40 = 1 tile/second)
     'melee':  { 
         hp: 2000, 
         speed: 40,   
@@ -11,7 +11,7 @@ const ENEMY_DATA = {
         attackCooldown: 12000
     }, 
     
-    // 基础远程兵：血量1500 [cite: 69]，伤害100 [cite: 72]
+    // Basic Ranged Unit: HP 1500 [cite: 69], Damage 100 [cite: 72]
     'ranged': { 
         hp: 1500, 
         speed: 26.6, 
