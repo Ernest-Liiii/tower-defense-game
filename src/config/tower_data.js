@@ -20,10 +20,10 @@ const TOWER_DATA = {
         description: 'Cost: $100\nDamage: 500\nAbility: Deals high flame damage to enemies in range.'
     },
 
-    // Wood Tower: Cost $75 [cite: 44], HP 1200 [cite: 45], Attack Damage 20 [cite: 48]
+    // Wood Tower: Cost $75 [cite: 44], HP 1200 [cite: 45], Attack Damage 200 [cite: 48]
     'wood': { 
-        cost: 75, hp: 1200, range: 120, damage: 20, color: 0x2ecc71,
-        description: 'Cost: $75\nDamage: 20\nAbility: Attacks poison enemies, causing slow and DoT.'
+        cost: 75, hp: 1200, range: 120, damage: 200, color: 0x2ecc71,
+        description: 'Cost: $75\nDamage: 200\nAbility: Attacks poison enemies, causing slow and DoT.'
     },
 
     // Earth Tower: Cost $120 [cite: 58], HP 4000 [cite: 59]

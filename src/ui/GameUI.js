@@ -10,7 +10,7 @@ export class GameUI extends Phaser.Scene {
         this.add.text(20, 20, 'Level 1: Tutorial Level', { fontSize: '20px', fill: '#00ff00' });
         let uiPanel = this.add.rectangle(900, 300, 200, 600, 0x2c3e50).setInteractive(); 
 
-        this.add.text(820, 20, 'Control Panel', { fontSize: '24px', fill: '#ffffff', fontStyle: 'bold' });
+        this.add.text(820, 20, 'Control Panel', { fontSize: '20px', fill: '#ffffff', fontStyle: 'bold' });
         this.moneyText = this.add.text(820, 60, '💰 Money: 0', { fontSize: '18px', fill: '#ffd700', fontStyle: 'bold' });
         this.livesText = this.add.text(820, 90, '❤️ Lives: 0', { fontSize: '18px', fill: '#ff4757', fontStyle: 'bold' });
         this.waveText = this.add.text(820, 120, '🌊 Wave: ? / ?', { fontSize: '18px', fill: '#0984e3', fontStyle: 'bold' });
@@ -35,8 +35,8 @@ export class GameUI extends Phaser.Scene {
 
         // Bottom buttons unchanged
         let pauseBtn = this.add.text(900, 550, '⏸ Pause Game', { fontSize: '20px', fill: '#ffffff', backgroundColor: '#34495e', padding: { x: 10, y: 5 } }).setOrigin(0.5).setInteractive();
-        let speedBtn = this.add.text(840, 570, 'x2', { fontSize: '16px', fill: '#fff', backgroundColor: '#e17055', padding: {x:5, y:5} }).setInteractive();
-        let nextWaveBtn = this.add.text(880, 570, '⏭ Next Wave', { fontSize: '16px', fill: '#fff', backgroundColor: '#d63031', padding: {x:5, y:5} }).setInteractive();
+        let speedBtn = this.add.text(820, 570, 'x2', { fontSize: '16px', fill: '#fff', backgroundColor: '#e17055', padding: {x:5, y:5} }).setInteractive();
+        let nextWaveBtn = this.add.text(860, 570, '⏭ Next Wave', { fontSize: '16px', fill: '#fff', backgroundColor: '#d63031', padding: {x:5, y:5} }).setInteractive();
 
         const gameScene = this.scene.get('GameScene');
 
