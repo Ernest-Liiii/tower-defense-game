@@ -8,6 +8,12 @@ export class PauseUI {
     }
 
     createUI() {
+        let gameScene = this.scene.scene.get('GameScene');
+
+        if (gameScene && gameScene.musicSystem) {
+            gameScene.musicSystem.pauseBGM(this.scene);
+        }
+
         this.scene.add.rectangle(400, 300, 800, 600, 0x000000, 0.6);
 
         this.scene.add.text(400, 200, 'Game Paused', { 
@@ -20,6 +26,11 @@ export class PauseUI {
 
         resumeBtn.on('pointerdown', () => {
             this.scene.scene.resume('GameScene'); 
+
+            if (gameScene && gameScene.musicSystem) {
+                gameScene.musicSystem.resumeBGM();
+            }
+
             this.scene.scene.stop();              
         });
 

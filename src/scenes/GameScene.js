@@ -12,6 +12,7 @@ import { PathSystem } from '../systems/PathSystem.js';
 import { TimeSystem } from '../systems/TimeSystem.js';
 import { EnemyAttackSystem } from '../systems/EnemyAttackSystem.js';
 import { TowerSystem } from '../systems/TowerSystem.js';
+import { MusicSystem } from '../systems/MusicSystem.js';
 
 // import the data for levels and towers
 import { LEVEL_DATA } from '../config/level_data.js';
@@ -21,6 +22,7 @@ import { ENEMY_DATA } from '../config/enemy_data.js';
 export class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
+        this.MusicSystem = null; // initialize the music system property
     }
 
     // 當場景每次啟動 (或重新開始) 時，都會先執行這裡
@@ -89,9 +91,15 @@ export class GameScene extends Phaser.Scene {
         this.load.image('fire_tower', 'assets/images/FireTower.png')
         this.load.image('wood_tower', 'assets/images/WoodTower.png')
         this.load.image('earth_tower', 'assets/images/EarthTower.png')
+
+        // load the audio files for bgm
+        this.load.audio('level1_bgm', 'assets/audio/Level_1.mp3')
     }
 
     create() {
+        this.musicSystem = new MusicSystem(this); // create an instance of the music system
+        this.musicSystem.playBGM('level1_bgm', 0.3); // play the background music for level 1
+
         // 定義網格單元格大小
         this.cellSize = 40;
         // 這裡放你原本 game.js 裡 create() 函數中的所有程式碼！
@@ -254,6 +262,11 @@ export class GameScene extends Phaser.Scene {
 
             // 2. 杀掉所有残留的飘字和特效动画
             this.tweens.killAll();
+
+            // 3. 停止所有正在播放的音乐
+            if (this.musicSystem) {
+                this.musicSystem.stopBGM(true);
+            }
         });
     }
 
@@ -269,117 +282,6 @@ export class GameScene extends Phaser.Scene {
         const currentTime = this.timeSystem.time;
 
         this.waveSystem.update(currentTime);
-
-        // // 2. 防御塔工作逻辑 (包含攻击与产费)
-        // this.towers.forEach(tower => {
-
-        //     if (!tower.isCooldownInitialized) {
-        //         tower.nextFire = currentTime + 500;
-        //         tower.nextGoldTime = currentTime + 2000;
-        //         tower.nextHealTime = currentTime + 1000;
-        //         tower.isCooldownInitialized = true; // 标记为已初始化
-        //     }
-            
-        //     // ================= 火塔：攻击逻辑 =================
-        //     // 只有攻击范围大于0的塔（火塔）才会索敌开火
-        //     if (tower.type === 'fire') {
-        //         if (currentTime > tower.nextFire) {
-        //             let target = getEnemyInRange(tower, this.enemies.getChildren()); // 注意：需要传入敌人数组
-        //             if (target) {
-        //                 // 【新增：元素联动检测】看看自己是不是在水塔范围内
-        //                 let isBuffed = false;
-        //                 this.towers.forEach(otherTower => {
-        //                     // 找到场上存活的水塔
-        //                     if (otherTower.type === 'water' && otherTower.active) {
-        //                         let dx = Math.abs(tower.x - otherTower.x);
-        //                         let dy = Math.abs(tower.y - otherTower.y);
-        //                         // 水塔范围是 5x5 (即中心向外各 100 像素)
-        //                         if (dx <= 100 && dy <= 100) {
-        //                             isBuffed = true; // 吃到强化了！
-        //                         }
-        //                     }
-        //                 });
-
-        //                 // 发射子弹，并把强化状态传过去
-        //                 shoot(this, tower, target, this.bullets, isBuffed);
-        //                 // ✅ 核心修复：防止时间误差累积吞子弹
-        //                 if (currentTime - tower.nextFire > 500) {
-        //                     // 如果塔闲置了很久（敌人刚进入范围），以当前时间重置
-        //                     tower.nextFire = currentTime + 500; 
-        //                 } else {
-        //                     // 如果在持续射击，精确累加，绝不吞噬毫秒误差！
-        //                     tower.nextFire += 500; 
-        //                 }
-        //             }
-        //         }
-        //     }
-
-        //     // ================= 金塔：产费逻辑 =================
-        //     if (tower.type === 'gold') {
-        //         // 如果当前时间超过了下次产费时间
-        //         if (currentTime > tower.nextGoldTime) {
-                    
-        //             // 1. 增加玩家金币并更新右上角UI
-        //             this.playerMoney += 10; // 每次产费增加10金币
-        //             // this.moneyText.setText('💰 費用: ' + this.playerMoney);
-                    
-        //             // // 2. 做一个酷炫的飘字特效，告诉玩家“加钱了！”
-        //             let floatText = this.add.text(tower.x - 10, tower.y - 20, '+10$', { 
-        //                 fontSize: '18px', fill: '#ffd700', fontStyle: 'bold' 
-        //             });
-        //             // // 使用 Phaser 的补间动画 (Tween) 让文字向上飘并渐渐变透明
-        //             this.tweens.add({
-        //                 targets: floatText,
-        //                 y: tower.y - 50, // 往上飘 30 像素
-        //                 alpha: 0,        // 透明度变成 0
-        //                 duration: 1000,  // 动画持续 1 秒
-        //                 onComplete: () => floatText.destroy() // 动画结束后销毁文字，节省内存
-        //             });
-
-        //             this.events.emit('updateMoney', this.playerMoney); // emit an event to update money in UI
-
-        //             // 3. 设定下一次产费的时间 (当前时间 + 2000毫秒)
-        //             tower.nextGoldTime += 2000; 
-        //         }
-        //     }
-
-        //     // ================= 水塔：群体治疗逻辑 =================
-        //     if (tower.type === 'water') {
-        //         // 每 1000 毫秒（1秒）触发一次
-        //         if (currentTime > tower.nextHealTime) {
-                    
-        //             // 遍历所有的塔，看看谁在我的 5x5 水域内
-        //             this.towers.forEach(targetTower => {
-        //                 // 计算两个塔在 X 轴和 Y 轴的像素距离
-        //                 let dx = Math.abs(targetTower.x - tower.x);
-        //                 let dy = Math.abs(targetTower.y - tower.y);
-                        
-        //                 // 如果 X 和 Y 距离都在 100 以内，说明在这个 200x200 的正方形范围内
-        //                 if (dx <= 100 && dy <= 100) {
-                            
-        //                     // 执行治疗，但不能超过最大生命值
-        //                     if (targetTower.hp < targetTower.maxHp) {
-        //                         targetTower.hp = Math.min(targetTower.hp + 25, targetTower.maxHp);
-        //                     }
-
-        //                     // 为了让你看清效果，不管满没满血，我们都飘个绿字
-        //                     let healText = this.add.text(targetTower.x + 5, targetTower.y - 15, '+25 HP', {
-        //                         fontSize: '14px', fill: '#00ff00', fontStyle: 'bold'
-        //                     });
-        //                     this.tweens.add({
-        //                         targets: healText,
-        //                         y: targetTower.y - 35,
-        //                         alpha: 0,
-        //                         duration: 1000,
-        //                         onComplete: () => healText.destroy()
-        //                     });
-        //                 }
-        //             });
-
-        //             tower.nextHealTime += 1000; 
-        //         }
-        //     }
-        // });
 
         this.towerSystem.update(currentTime); // 调用塔系统的更新方法
 
@@ -482,6 +384,9 @@ export class GameScene extends Phaser.Scene {
             // 遊戲結束判定
             if (this.playerLives <= 0 && !this.isGameOver) {
                 this.isGameOver = true;    
+
+                this.musicSystem.stopBGM(); // stop the background music when game is over
+
                 this.physics.pause(); 
                 this.tweens.pauseAll(); 
 
