@@ -169,7 +169,7 @@ export class BuildingSystem {
                 tower.direction = this.currentDragDir; 
 
                 tower.rangeGraphic = this.scene.add.graphics();
-                drawDirectionalRange(tower.rangeGraphic, centerX, centerY, this.currentDragDir, 'fire', 0.15);
+                drawDirectionalRange(tower.rangeGraphic, centerX, centerY, this.currentDragDir, 'fire', tower.range, 0.15, tower.isWoodBuffed);
                 
             } else if (this.scene.currentSelectedTower === 'water') {
                 tower = this.scene.add.image(centerX, centerY, 'water_tower');
@@ -311,6 +311,9 @@ export class BuildingSystem {
         if (tower.rangeGraphic) {
             tower.rangeGraphic.destroy();
         }
+
+        // for debugging only
+        if(tower.debugText) tower.debugText.destroy();
 
         // Completely destroy tower
         tower.active = false;

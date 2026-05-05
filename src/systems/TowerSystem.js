@@ -64,8 +64,15 @@ export class TowerSystem {
 
     handleGoldTower(tower, currentTime) {
         if (currentTime > tower.nextGoldTime) {
-            this.scene.playerMoney += 10;
-            this.showFloatingText(tower.x, tower.y, '+10$', '#ffd700');
+            // if gold tower is in earth tower range, increase the gold production amount.
+            // Earth -> Gold
+            let goldAmount = tower.isEarthBuffed? 20: 10;
+            this.scene.playerMoney += goldAmount;
+
+            let color = tower.isEarthBuffed? '#FFAA00': '#FFD700';
+
+            this.showFloatingText(tower.x, tower.y, `+${goldAmount}$`, color);
+
             this.scene.events.emit('updateMoney', this.scene.playerMoney);
             tower.nextGoldTime += 2000;
         }
@@ -80,6 +87,21 @@ export class TowerSystem {
                         this.showFloatingText(targetTower.x, targetTower.y, '+25 HP', '#00ff00');
                     }
                 }
+
+                // Gold -> Water
+                if (tower.isGoldBuffed) {
+                    if (!targetTower.shield) targetTower.shield = 0;  // initialize
+
+                    if (targetTower.shield < 50) {
+                        let oldShield = targetTower.shield;
+                        targetTower.shield = Math.min(targetTower.shield + 20, 50);
+
+                        let added = targetTower.shield - oldShield;
+                        if (added > 0) {
+                            this.showFloatingText(targetTower.x, targetTower.y - 15, `+${added} Shield`, '#FFFFFF');
+                        }
+                    }
+                }
             });
             tower.nextHealTime += 1000;
         }
@@ -90,10 +112,16 @@ export class TowerSystem {
         if (currentTime > tower.nextFire) {
             let target = getEnemyInRange(tower, this.scene.enemies.getChildren());
             if (target) {
-                // 注意：发射的子弹需要带上“我是木头子弹”的标记，待会儿在 GameScene 里教你怎么接
-                shoot(this.scene, tower, target, this.scene.bullets, false); 
+
+                let bullet = shoot(this.scene, tower, target, this.scene.bullets, false); 
+                // Water -> Wood
+                if (bullet) {
+                    bullet.towerType = 'wood';
+                    bullet.isSuperPoison = tower.isWaterBuffed;
+                }
                 
-                tower.nextFire = currentTime + 800;
+                let cooldown = tower.isWaterBuffed? 800 * 0.7: 800;
+                tower.nextFire = currentTime + cooldown;
             }
         }
     }
@@ -118,7 +146,9 @@ export class TowerSystem {
             });
 
             // If hit any enemies, 5 second cooldown; if not, check again in 2 seconds
-            tower.nextFire = currentTime + (hitAny ? 5000 : 2000);
+            // Fire -> Earth
+            let cooldown = tower.isFireBuffed? 3000: 5000;
+            tower.nextFire = currentTime + (hitAny? cooldown : 2000);
         }
     }
 
@@ -175,7 +205,7 @@ export class TowerSystem {
                 if (currentTime > enemy.poisonEndTime) {
                     enemy.isPoisoned = false;
                 } else if (currentTime > enemy.nextPoisonTick) {
-                    let poisonDmg = 15; // Poison damage per tick
+                    let poisonDmg = enemy.isSuperPoison? 30: 15; // Poison damage per tick
                     enemy.hp -= poisonDmg;
                     this.showFloatingText(enemy.x, enemy.y, '-' + poisonDmg, '#8e44ad');
                     

@@ -28,7 +28,22 @@ export class EnemyAttackSystem {
 
                 // If target found, execute attack
                 if (targetTower) {
-                    targetTower.hp -= enemy.damage;
+                    let incomingDamage = enemy.damage;
+
+                    if (targetTower.shield && targetTower.shield > 0) {
+                        if (targetTower.shield >= incomingDamage) {
+                            targetTower.shield -= incomingDamage;
+                            incomingDamage = 0;
+                        }
+                        else {
+                            incomingDamage -= targetTower.shield;
+                            targetTower.shield = 0;
+                        }
+                    }
+                    
+                    if (incomingDamage > 0) {
+                        targetTower.hp -= incomingDamage;
+                    }
                     
                     // Show red floating damage text
                     let dmgText = this.scene.add.text(targetTower.x, targetTower.y, '-' + enemy.damage, { fill: '#ff0000', fontStyle: 'bold' });

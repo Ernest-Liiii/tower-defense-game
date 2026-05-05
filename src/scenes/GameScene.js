@@ -13,6 +13,7 @@ import { TimeSystem } from '../systems/TimeSystem.js';
 import { EnemyAttackSystem } from '../systems/EnemyAttackSystem.js';
 import { TowerSystem } from '../systems/TowerSystem.js';
 import { MusicSystem } from '../systems/MusicSystem.js';
+import { ReactionSystem } from '../systems/ReactionSystem.js';
 
 // import the data for levels and towers
 import { LEVEL_DATA } from '../config/level_data.js';
@@ -65,6 +66,9 @@ export class GameScene extends Phaser.Scene {
 
         // initialize the Tower System
         this.towerSystem = new TowerSystem(this);
+
+        // initialize th Reaction System
+        this.ReactionSystem = new ReactionSystem(this);
     }
 
     // 【新增】預載入遊戲素材
@@ -210,12 +214,15 @@ export class GameScene extends Phaser.Scene {
                 
                 // 挂载中毒 (持续 3 秒，首次触发在 0.5 秒后)
                 enemy.isPoisoned = true;
+
                 enemy.poisonEndTime = currentTime + 3000;
                 enemy.nextPoisonTick = currentTime + 500;
 
                 // 挂载减速 (持续 3 秒)
                 enemy.isSlowed = true;
                 enemy.slowEndTime = currentTime + 3000;
+
+                enemy.isSuperPoison = bullet.isSuperPoison;
                 
                 // 飘个绿字提示玩家
                 let debuffText = this.add.text(enemy.x, enemy.y - 20, 'Poisoned/Slowed', { fill: '#2ecc71', fontSize: '12px' });
@@ -287,6 +294,8 @@ export class GameScene extends Phaser.Scene {
 
         this.enemyAttackSystem.update(currentTime); // 调用敌人攻击系统的更新方法
 
+        this.ReactionSystem.update(currentTime);
+
         // ================= 3. 子弹追踪逻辑 =================
         this.bullets.getChildren().forEach(bullet => {
             if (bullet.active) {
@@ -305,8 +314,35 @@ export class GameScene extends Phaser.Scene {
 
         // set the tower hp bars
         this.towers.forEach(tower => {
-            if (tower.active && tower.hp < tower.maxHp) {
-                this.drawHpBar(tower.x, tower.y - 25, tower.hp, tower.maxHp);
+            if (!tower.active) return;
+
+            if (tower.type === 'fire' && tower.rangeGraphic) {
+                drawDirectionalRange(tower.rangeGraphic, tower.x, tower.y, tower.direction, tower.type, tower.range, 0.15, tower.isWoodBuffed);
+            }
+
+            if (tower.hp < tower.maxHp || (tower.shield && tower.shield > 0)) {
+                this.drawHpBar(tower.x, tower.y - 25, tower.hp, tower.maxHp, false, tower.shield || 0);
+            }
+
+            // for debugging only
+            if (tower.active) {
+                // create debug text
+                if (!tower.debugText) {
+                    tower.debugText = this.add.text(tower.x, tower.y - 40, '', { 
+                        fontSize: '12px', fill: '#ffffff', fontStyle: 'bold', backgroundColor: '#00000088'
+                    }).setOrigin(0.5);
+                    tower.debugText.setDepth(300);
+                }
+
+                // detect and show the status text
+                let buffString = '';
+                if (tower.isWaterBuffed) buffString += '💧';
+                if (tower.isWoodBuffed)  buffString += '🌿';
+                if (tower.isFireBuffed)  buffString += '🔥';
+                if (tower.isEarthBuffed) buffString += '🪨';
+                if (tower.isGoldBuffed)  buffString += '💰';
+
+                tower.debugText.setText(buffString);
             }
         })
 
@@ -427,7 +463,7 @@ export class GameScene extends Phaser.Scene {
         });
     }
 
-    drawHpBar(x, y, currentHp, maxHp) {
+    drawHpBar(x, y, currentHp, maxHp, isEnemy = false, shield = 0) {
         const width = 30;  // length of the hp bar
         const height = 4;  // height of the hp bar
         const startX = x - width / 2;
@@ -441,6 +477,17 @@ export class GameScene extends Phaser.Scene {
         const greenWidth = width * (currentHp / maxHp);
         this.hpGraphics.fillStyle(0x00ff00, 1);
         this.hpGraphics.fillRect(startX, startY, greenWidth, height);
+
+        if (shield > 0) {
+            const shieldWidth = width * (shield / maxHp);
+            const shieldStartX = startX + width - shieldWidth;
+
+            this.hpGraphics.fillStyle(0xFFFFFF, 0.8);
+            this.hpGraphics.fillRect(shieldStartX, startY, shieldWidth, height);
+
+            this.hpGraphics.lineStyle(1, 0xFFFFFF, 1);
+            this.hpGraphics.strokeRect(shieldStartX, startY, shieldWidth, height);
+        }
     }
 
     // updaye enemies' path compulsorily called after building or demolishing towers, 
