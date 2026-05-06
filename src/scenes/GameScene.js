@@ -111,7 +111,7 @@ export class GameScene extends Phaser.Scene {
 
         this.scene.launch('GameUI');  // launch the UI scene
 
-        this.add.text(20, 20, 'Level 1: Tutorial Level', { fontSize: '20px', fill: '#00ff00' });
+        // this.add.text(20, 20, 'Level 1: Tutorial Level', { fontSize: '20px', fill: '#00ff00' });
         
         if (this.pathSystem.currentFullPath.length > 0) {
             let startPoint = this.pathSystem.currentFullPath[0];

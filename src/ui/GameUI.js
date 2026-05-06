@@ -7,7 +7,7 @@ export class GameUI extends Phaser.Scene {
 
     create() {
         // 1. Draw UI elements
-        this.add.text(20, 20, 'Level 1: Tutorial Level', { fontSize: '20px', fill: '#00ff00' });
+        // this.add.text(20, 20, 'Level 1: Tutorial Level', { fontSize: '20px', fill: '#00ff00' });
         let uiPanel = this.add.rectangle(900, 300, 200, 600, 0x2c3e50).setInteractive(); 
 
         this.add.text(820, 20, 'Control Panel', { fontSize: '20px', fill: '#ffffff', fontStyle: 'bold' });
