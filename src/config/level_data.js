@@ -19,7 +19,8 @@ export const LEVEL_DATA = {
             {
                 startDelay: 2000, // Preparation time before this wave (2 seconds)
                 enemies: [
-                    { type: 'melee', amount: 5, interval: 1500 } // Spawn 5 melee units, 1 every 1.5 seconds
+                    { type: 'melee', amount: 5, interval: 1500 }, // Spawn 5 melee units, 1 every 1.5 seconds
+                    { type: 'boss_slime', amount: 1, interval: 0, delay: 5000 } // 测试 
                 ]
             },
             
@@ -216,7 +217,8 @@ export const LEVEL_DATA = {
                 enemies: [
                     { type: 'melee', amount: 50, interval: 300 },
                     { type: 'ranged', amount: 30, interval: 500, delay: 2000 },
-                    { type: 'flying', amount: 40, interval: 400, delay: 4000 }
+                    { type: 'flying', amount: 40, interval: 400, delay: 4000 },
+                    { type: 'boss_slime', amount: 1, interval: 0, delay: 6000 } // 最后来个大BOSS压轴
                 ]
             }
         ]

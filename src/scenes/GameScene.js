@@ -93,6 +93,9 @@ export class GameScene extends Phaser.Scene {
         this.load.image('slime', 'assets/images/Slime.png');
         this.load.image('ranged_goblin', 'assets/images/RangedGoblin.png');
         this.load.image('flying', 'assets/images/Flying.png')
+        this.load.image('boss_slime', 'assets/images/BossSlime.png');
+        this.load.image('middle_slime', 'assets/images/MiddleSlime.png');
+        this.load.image('mini_slime', 'assets/images/MiniSlime.png');
 
         // load the textures of the towers
         this.load.image('water_tower', 'assets/images/WaterTower.png')
@@ -498,10 +501,15 @@ export class GameScene extends Phaser.Scene {
         enemy.setDepth(isFlying ? 5 : 2);
 
         enemy.isFlying = isFlying;
+
+        let bossTextureKey = config.textureKey; // store the texture key for later use in sizing
         
         // enemy.setDisplaySize(this.cellSize, this.cellSize);
-        if (isFlying) {
-            enemy.setDisplaySize(45, 45); 
+        if (bossTextureKey === 'boss_slime') {
+            enemy.setDisplaySize(70, 45);
+        }
+        else if (isFlying) {
+            enemy.setDisplaySize(55, 55); 
         } else {
             enemy.setDisplaySize(30, 30); // 地面敌人保持原来的大小
         }
@@ -517,6 +525,10 @@ export class GameScene extends Phaser.Scene {
 
         // let enemy remember its speed
         enemy.speed = config.speed;
+
+        // 分裂敌人的属性
+        enemy.splitInto = config.splitInto || null;
+        enemy.splitCount = config.splitCount || 0;
 
         // 4. 計算走完路徑所需的時間 (時間 = 距離 / 速度)
         // 假設路徑總長度約為 1440 像素，乘以 1000 轉換為毫秒
@@ -698,6 +710,83 @@ export class GameScene extends Phaser.Scene {
                 }
             });
         });
+    }
+
+    // 处理分裂敌人的函数
+    handleEnemySplit(x, y, parentEnemy) {
+        let splitType = parentEnemy.splitInto;
+        let splitCount = parentEnemy.splitCount;
+        const config = ENEMY_DATA[splitType];
+        
+        if (!config) return;
+
+        // 1. 寻找大史莱姆死前距离哪个路径点最近
+        let targetIndex = 0;
+        let minDistance = Infinity;
+        for (let i = 0; i < this.pathSystem.currentFullPath.length; i++) {
+            let p = this.pathSystem.currentFullPath[i];
+            let dist = Phaser.Math.Distance.Between(x, y, p.x, p.y);
+            if (dist < minDistance) {
+                minDistance = dist;
+                targetIndex = i;
+            }
+        }
+
+        // 2. 建立剩余路径
+        let remainingPath = this.add.path(x, y);
+        for (let i = targetIndex; i < this.pathSystem.currentFullPath.length; i++) {
+            let p = this.pathSystem.currentFullPath[i];
+            remainingPath.lineTo(p.x, p.y);
+        }
+        let remainingLength = remainingPath.getLength();
+
+        // 3. 生成分裂的子代史莱姆
+        for (let i = 0; i < splitCount; i++) {
+            let textureToUse = config.textureKey || 'enemyTexture';
+            
+            // 在原地生成小怪
+            let childEnemy = this.add.follower(remainingPath, x, y, textureToUse);
+            this.enemies.add(childEnemy);
+
+            childEnemy.setDepth(2);
+            childEnemy.isFlying = parentEnemy.isFlying;
+
+            if (splitType === 'middle_slime') {
+                childEnemy.setDisplaySize(45, 45); // 中史莱姆体型
+            } else if (splitType === 'mini_slime') {
+                childEnemy.setDisplaySize(70, 70); // 小史莱姆体型
+            } else {
+                childEnemy.setDisplaySize(30, 30);
+            }
+
+            // 赋予战斗数值
+            childEnemy.hp = config.hp;
+            childEnemy.maxHp = config.hp;
+            childEnemy.damage = config.damage;
+            childEnemy.attackRange = config.attackRange || 45;
+            childEnemy.attackCooldown = config.attackCooldown || 2000;
+            childEnemy.nextAttack = 0;
+            
+            // ✅ 【核心新增 2】继承分裂基因！让中史莱姆死后能继续分裂成小史莱姆
+            childEnemy.splitInto = config.splitInto || null;
+            childEnemy.splitCount = config.splitCount || 0;
+            
+            // 让它们速度有随机差异，拉开阵型
+            childEnemy.speed = config.speed + Phaser.Math.Between(-8, 8); 
+            childEnemy.spawnTime = this.timeSystem.time;
+
+            // 4. 计算走完剩余路径需要的时间
+            let newDuration = (remainingLength / childEnemy.speed) * 1000;
+
+            // 5. 让分裂出来的怪物开始冲刺
+            childEnemy.startFollow({
+                duration: newDuration,
+                rotateToPath: false,
+                onComplete: () => {
+                    this.onEnemyReachEnd(childEnemy);
+                }
+            });
+        }
     }
 
     // 原本寫在全域的輔助函數 (例如 getEnemyInRange, shoot) 

@@ -85,6 +85,11 @@ export function hitEnemy(bullet, enemy) {
             onComplete: () => bountyText.destroy() 
         });
 
+        // 如果有分裂逻辑 则在摧毁之前进行分裂
+        if (enemy.splitInto) {
+            enemy.scene.handleEnemySplit(enemy.x, enemy.y, enemy);
+        }
+
         enemy.destroy(); 
         
         // [Key]: Enemy is dead, return true
