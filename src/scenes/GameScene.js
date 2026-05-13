@@ -506,7 +506,7 @@ export class GameScene extends Phaser.Scene {
         
         // enemy.setDisplaySize(this.cellSize, this.cellSize);
         if (bossTextureKey === 'boss_slime') {
-            enemy.setDisplaySize(70, 45);
+            enemy.setDisplaySize(90, 45);
         }
         else if (isFlying) {
             enemy.setDisplaySize(55, 55); 
