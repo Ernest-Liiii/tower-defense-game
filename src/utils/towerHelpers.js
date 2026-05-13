@@ -78,7 +78,7 @@ export function drawDirectionalRange(graphics, cx, cy, dir, type, range = 0, alp
     else if (range > 0) {
         // Determine circle color based on tower type
         let color = 0xffffff; // default white
-        if (type === 'wood') color = 0x2ecc71; // Wood tower green
+        if (type === 'wood') color = 0x117a65; // Wood tower green
         if (type === 'earth') color = 0xe67e22; // Earth tower orange
 
         graphics.fillStyle(color, alpha);

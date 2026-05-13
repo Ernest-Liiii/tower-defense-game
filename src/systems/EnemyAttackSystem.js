@@ -54,6 +54,7 @@ export class EnemyAttackSystem {
                         if (targetTower.rangeGraphic) targetTower.rangeGraphic.destroy();
                         if (targetTower.levelAura) targetTower.levelAura.destroy();
                         if (targetTower.debugText) targetTower.debugText.destroy();
+                        if (targetTower.emitter) targetTower.emitter.destroy();
                         
                         targetTower.destroy(); // Destroy tower image
                         targetTower.active = false; 

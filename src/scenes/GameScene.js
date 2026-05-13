@@ -212,6 +212,57 @@ export class GameScene extends Phaser.Scene {
             texGraphics.fillStyle(0xff8c00); 
             texGraphics.fillCircle(6, 6, 6); 
             texGraphics.generateTexture('boilingBulletTexture', 12, 12);
+            texGraphics.clear();
+
+            // 火塔的特效
+            // 底层：半透明的红色外围光晕
+            texGraphics.fillStyle(0xff2a00, 0.4); 
+            texGraphics.fillCircle(8, 8, 8);           
+            // 中层：较亮的橙色过渡
+            texGraphics.fillStyle(0xff8800, 0.8); 
+            texGraphics.fillCircle(8, 8, 5);         
+            // 顶层：极亮的高温白黄色核心
+            texGraphics.fillStyle(0xffffff, 1);   
+            texGraphics.fillCircle(8, 8, 2); 
+            // 生成稍微大一点的贴图 (16x16)
+            texGraphics.generateTexture('spark', 16, 16); 
+            texGraphics.clear();
+
+            // 木塔的特效
+            texGraphics.fillStyle(0x2ecc71, 0.4); 
+            texGraphics.fillCircle(8, 8, 8);
+            texGraphics.fillStyle(0x27ae60, 0.8); 
+            texGraphics.fillCircle(8, 8, 4);
+            texGraphics.generateTexture('poison_spore', 16, 16);
+            texGraphics.clear();
+
+            // 金塔的特效
+            // 底层：半透明的金色圆形光晕
+            texGraphics.fillStyle(0xffd700, 0.3);
+            texGraphics.fillCircle(8, 8, 6);            
+            // 中层：黄金色的“细”十字星芒
+            texGraphics.fillStyle(0xffe600, 0.9);
+            texGraphics.fillRect(7, 2, 2, 12); // 极细的竖线
+            texGraphics.fillRect(2, 7, 12, 2); // 极细的横线         
+            // 顶层：最亮眼的纯白高光中心
+            texGraphics.fillStyle(0xffffff, 1);
+            texGraphics.fillRect(7, 7, 2, 2);
+            texGraphics.generateTexture('gold_glint', 16, 16);
+            texGraphics.clear();
+
+            // 土塔的特效
+            texGraphics.fillStyle(0x8b7355, 0.9);
+            texGraphics.fillRect(0, 0, 6, 6);
+            texGraphics.generateTexture('earth_dust', 6, 6);
+            texGraphics.clear();
+
+            // 水塔的特效
+            texGraphics.fillStyle(0x00aaff, 0.5);
+            texGraphics.fillCircle(6, 6, 6);
+            texGraphics.fillStyle(0xffffff, 0.8);
+            texGraphics.fillCircle(4, 4, 2); // 水泡的高光
+            texGraphics.generateTexture('water_bubble', 12, 12);
+            texGraphics.clear();
             
             texGraphics.destroy(); // 画完贴图后销毁画笔，释放内存
         }
@@ -229,6 +280,44 @@ export class GameScene extends Phaser.Scene {
 
             // 调用 helper 处理伤害，并接收是否击杀的结果
             let isKilled = hitEnemy(bullet, enemy);
+
+            // 增加火塔击中敌人的爆炸特效
+            if (bullet.towerType === 'fire' || bullet.texture.key === 'boilingBulletTexture') {
+                let explosion = this.add.particles(enemy.x, enemy.y, 'spark', {
+                    speed: { min: 50, max: 200 },     // 爆炸速度极快，四散溅开
+                    scale: { start: 1.2, end: 0 },    // 从大变小
+                    alpha: { start: 1, end: 0 },
+                    blendMode: 'ADD',
+                    lifespan: { min: 200, max: 400 }, // 存活时间很短，形成瞬间爆炸感
+                    emitting: false                   // 【关键】设为 false，禁止它持续喷射
+                });
+
+                explosion.setDepth(15); // 确保爆炸特效显示在最上层
+                explosion.explode(15);  // 【关键】瞬间向四周爆开 15 个粒子！
+
+                // 爆炸结束后（500毫秒），销毁发射器释放内存
+                this.time.delayedCall(500, () => {
+                    explosion.destroy();
+                });
+            }
+
+            if (bullet.towerType === 'wood') {
+                let splash = this.add.particles(enemy.x, enemy.y, 'poison_spore', {
+                    speed: { min: 20, max: 60 },      // 飞溅速度不用像爆炸那么快
+                    scale: { start: 1, end: 0.2 },    // 缩小，模拟水滴飞散
+                    alpha: { start: 0.7, end: 0 },
+                    lifespan: { min: 300, max: 500 }, // 很快消失
+                    emitting: false                   // 禁止自动喷射
+                });
+
+                splash.setDepth(15);
+                splash.explode(10);  // 命中瞬间爆出 10 滴毒液粒子
+
+                // 同样在结束以后销毁发射器
+                this.time.delayedCall(600, () => {
+                    splash.destroy();
+                });
+            }
 
             if (!isKilled && bullet.towerType === 'wood') {
                 const currentTime = this.timeSystem.time;
@@ -327,6 +416,11 @@ export class GameScene extends Phaser.Scene {
                 } else {
                     // 目标如果已经死了，子弹就在空中直接销毁
                     bullet.destroy();
+                    
+                    // 销毁子弹拖尾
+                    if (bullet.trailEmitter) {
+                        bullet.trailEmitter.destroy();
+                    }
                 }
             }
         });

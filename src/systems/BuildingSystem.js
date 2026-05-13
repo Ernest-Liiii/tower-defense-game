@@ -171,12 +171,100 @@ export class BuildingSystem {
                 tower.rangeGraphic = this.scene.add.graphics();
                 drawDirectionalRange(tower.rangeGraphic, centerX, centerY, this.currentDragDir, 'fire', tower.range, 0.15, tower.isWoodBuffed);
                 
+                // 增加火焰特效：在塔的基础上添加一个粒子发射器，模拟火焰效果
+                let emberEmitter = this.scene.add.particles(centerX, centerY - 10, 'spark', {
+                    speed: { min: 15, max: 40 },      // 速度稍微加快一点
+                    angle: { min: 240, max: 300 },    // 扩散角度变大，像扇形一样飘
+                    scale: { start: 0.6, end: 0 },    // 初始稍微小一点，更有火星感
+                    alpha: { start: 1, end: 0 },      // 透明度从满到零
+                    lifespan: { min: 600, max: 1000}, // 让粒子的存活时间有随机性（错落有致）
+                    blendMode: 'ADD',                 
+                    quantity: 2,                      // 【新增】每次同时喷射 2 个粒子！
+                    frequency: 80                     // 【修改】从 150 改成 80，喷发频率翻倍！
+                });
+                
+                emberEmitter.setDepth(3); // 层级设为 3，确保显示在塔(层级2)的上方
+                tower.emitter = emberEmitter; // 【关键】把发射器绑定在 tower 对象上！
+
             } else if (this.scene.currentSelectedTower === 'water') {
                 tower = this.scene.add.image(centerX, centerY, 'water_tower');
                 tower.setDisplaySize(this.scene.cellSize, this.scene.cellSize); 
+
+                // 增加水塔特效
+                let bubbleEmitter = this.scene.add.particles(centerX, centerY + 10, 'water_bubble', {
+                    x: { min: -12, max: 12 },         // 在塔底一定范围内随机冒出
+                    cellSize: 16,                        // 粒子贴图大小
+                    speedY: { min: -10, max: -30 },   // 【关键】负数Y速度，让水泡缓缓向上升空
+                    speedX: { min: -5, max: 5 },      // 水泡在水中微微左右摇摆
+                    scale: { start: 0.3, end: 1 },    // 【关键】气泡升空时会因为水压减小而变大！
+                    alpha: { start: 0.8, end: 0 },    // 升到最高处时“破裂”消失
+                    lifespan: { min: 1000, max: 1500 },// 存活时间较长，显得轻盈柔和
+                    frequency: 350                    // “咕噜咕噜”的冒泡频率
+                });
+                
+                bubbleEmitter.setDepth(3);
+                tower.emitter = bubbleEmitter; // 绑定到塔身，卖出时自动销毁
             } else if (this.scene.currentSelectedTower === 'gold') {
                 tower = this.scene.add.image(centerX, centerY, 'gold_tower');
                 tower.setDisplaySize(this.scene.cellSize, this.scene.cellSize); 
+
+                // 增加金塔特效
+                let glintEmitter = this.scene.add.particles(centerX, centerY - 10, 'gold_glint', {
+                    x: { min: -15, max: 15 },         
+                    y: { min: -15, max: 15 },
+                    // 【缩小比例】把最大 end 改为 0.5，让星星小巧一点更精致
+                    scale: { start: 0, end: 0.5, yoyo: true }, 
+                    alpha: { start: 0, end: 1, yoyo: true },
+                    // ✅ 【新增旋转】让星星在出现的 0.8 秒内，顺滑地旋转 90 度！
+                    rotate: { start: 0, end: 90 },             
+                    lifespan: 800,                    
+                    frequency: 600,                   
+                    blendMode: 'ADD'                  
+                });
+
+                glintEmitter.setDepth(3);
+                tower.emitter = glintEmitter;
+            } else if (this.scene.currentSelectedTower === 'wood') {
+                tower = this.scene.add.image(centerX, centerY, 'wood_tower');
+                tower.setDisplaySize(this.scene.cellSize, this.scene.cellSize);
+                
+                tower.rangeGraphic = this.scene.add.graphics();
+                drawDirectionalRange(tower.rangeGraphic, centerX, centerY, this.currentDragDir, 'wood', towerConfig.range, 0.15);
+                
+                // 增加木塔的特效
+                let sporeEmitter = this.scene.add.particles(centerX, centerY - 10, 'poison_spore', {
+                    speed: { min: 5, max: 15 },       // 速度很慢，像微风吹过
+                    angle: { min: 0, max: 360 },      // 360度随机缓慢飘散
+                    scale: { start: 0.6, end: 0 },    // 从中等大小慢慢消失
+                    alpha: { start: 0.6, end: 0 },    // 半透明的毒气感，不要太刺眼
+                    lifespan: { min: 1000, max: 2000 },// 存活时间长，在空气中滞留
+                    blendMode: 'ADD',
+                    frequency: 300                    // 每 300 毫秒生成一个，不密集，体现自然感
+                });
+                
+                sporeEmitter.setDepth(3); 
+                tower.emitter = sporeEmitter; // 【关键】绑定在塔上，卖塔时自动销毁
+            } else if (this.scene.currentSelectedTower === 'earth') {
+                tower = this.scene.add.image(centerX, centerY, 'earth_tower');
+                tower.setDisplaySize(this.scene.cellSize, this.scene.cellSize);
+            
+                tower.rangeGraphic = this.scene.add.graphics();
+                drawDirectionalRange(tower.rangeGraphic, centerX, centerY, this.currentDragDir, 'earth', towerConfig.range, 0.15);
+                
+                // 增加土塔特效
+                let dustEmitter = this.scene.add.particles(centerX, centerY + 15, 'earth_dust', {
+                    x: { min: -12, max: 12 },         // 在塔底部的横向范围内随机出现
+                    y: { min: -5, max: 5 },
+                    speedY: { min: -5, max: -20 },    // 【关键】负数的 Y 速度，让碎石缓缓反重力漂浮起来
+                    scale: { start: 1, end: 0 },    // 从大变小化为尘土
+                    alpha: { start: 0.8, end: 0 },    
+                    lifespan: { min: 800, max: 1500 },// 存活约 1 秒
+                    frequency: 350,                   // 偶尔飘起一颗，显得厚重
+                    rotate: { start: 0, end: 180 }    // 碎石在半空中缓慢翻滚
+                });
+                
+                dustEmitter.setDepth(3);
+                tower.emitter = dustEmitter;
             } else {
                 let textureName = this.scene.currentSelectedTower + '_tower';
                 tower = this.scene.add.image(centerX, centerY, textureName);
@@ -203,7 +291,7 @@ export class BuildingSystem {
             if (tower.type === 'gold') tower.nextGoldTime = 0;
             if (tower.type === 'water') {
                 tower.nextHealTime = 0;
-                tower.rangeGraphic = this.scene.add.rectangle(centerX, centerY, 200, 200, 0x3498db, 0.15);
+                tower.rangeGraphic = this.scene.add.rectangle(centerX, centerY, 200, 200, 0x2980b9, 0.15);
             }
 
             tower.level = 1;
@@ -371,6 +459,10 @@ export class BuildingSystem {
 
         if (tower.levelAura) {
             tower.levelAura.destroy();
+        }
+
+        if (tower.emitter) {
+            tower.emitter.destroy();
         }
 
         // for debugging only

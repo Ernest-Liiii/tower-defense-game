@@ -86,6 +86,27 @@ export class TowerSystem {
             this.showFloatingText(tower.x, tower.y, `+${goldAmount}$`, color);
 
             this.scene.events.emit('updateMoney', this.scene.playerMoney);
+
+            // 增加金塔产出金钱时的视觉特效
+            let coinBurst = this.scene.add.particles(tower.x, tower.y - 10, 'gold_glint', {
+                speed: { min: 40, max: 90 },
+                angle: { min: 220, max: 320 }, // 向上方呈扇形喷发
+                gravityY: 200,                 // 【核心】加上重力参数！让闪光喷上去后往下掉！
+                scale: { start: 1, end: 0 },
+                alpha: { start: 1, end: 0 },
+                lifespan: { min: 600, max: 900 },
+                blendMode: 'ADD',
+                emitting: false                // 设为单次爆发，不持续喷发
+            });
+                
+            coinBurst.setDepth(15);
+            coinBurst.explode(5); // 瞬间喷出 5 个十字金光！
+
+            // 爆发结束后销毁发射器
+            this.scene.time.delayedCall(1000, () => {
+                if (coinBurst) coinBurst.destroy();
+            });
+
             tower.nextGoldTime += 2000;
         }
     }
@@ -101,6 +122,24 @@ export class TowerSystem {
                     if (targetTower.hp < targetTower.maxHp) {
                         targetTower.hp = Math.min(targetTower.hp + healAmt, targetTower.maxHp);
                         this.showFloatingText(targetTower.x, targetTower.y, `+${healAmt} HP`, '#00ff00');
+
+                        let waterPulse = this.scene.add.particles(tower.x, tower.y - 10, 'water_bubble', {
+                            speed: { min: 30, max: 60 },      // 像波纹一样向外柔和地推开
+                            angle: { min: 0, max: 360 },      // 360度全方位扩散
+                            scale: { start: 0.8, end: 0 },    // 水泡慢慢缩小直至消失
+                            alpha: { start: 0.6, end: 0 },    // 保持半透明，体现水的柔和感
+                            blendMode: 'ADD',
+                            lifespan: 600,                    // 扩散过程比较缓慢柔和 (0.6秒)
+                            emitting: false                   // 单次爆发
+                        });
+                        
+                        waterPulse.setDepth(1); // 层级设为1，紧贴地面扩散，不会遮挡塔身
+                        waterPulse.explode(20); // 瞬间向四周荡出 20 个水泡！
+
+                        // 爆发结束后销毁发射器
+                        this.scene.time.delayedCall(800, () => {
+                            if (waterPulse) waterPulse.destroy();
+                        });
                     }
                 }
 
@@ -164,7 +203,25 @@ export class TowerSystem {
                     // Built-in Phaser method to stop enemy path following
                     if (enemy.pauseFollow) enemy.pauseFollow();
                     
-                    this.showFloatingText(enemy.x, enemy.y, '💫 Stunned', '#e67e22');
+                    this.showFloatingText(enemy.x, enemy.y, '💫', '#e67e22');
+
+                    let shockwave = this.scene.add.particles(tower.x, tower.y - 10, 'earth_dust', {
+                        speed: { min: 80, max: 150 },     // 极快的向外爆发速度
+                        angle: { min: 0, max: 360 },      // 【关键】360度全方位死角喷发，形成环形
+                        scale: { start: 3, end: 0 },    // 碎石变大，然后迅速散去
+                        alpha: { start: 0.9, end: 0 },
+                        lifespan: 400,                    // 冲击波转瞬即逝 (0.4秒)
+                        rotate: { start: 0, end: 360 },   // 爆发时碎石狂野翻滚
+                        emitting: false                   // 单次爆发
+                    });
+                    
+                    shockwave.setDepth(1); // 【关键】层级设为 1，在草地上面，但是在塔和怪物下面，营造“贴地冲击”的感觉
+                    shockwave.explode(30); // 瞬间向四周炸出 30 颗碎石！
+
+                    // 爆发结束后销毁发射器
+                    this.scene.time.delayedCall(500, () => {
+                        if (shockwave) shockwave.destroy();
+                    });
                 }
             });
 

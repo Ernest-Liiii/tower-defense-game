@@ -10,7 +10,7 @@ const TOWER_DATA = {
 
     // Water Tower: Cost $50 [cite: 40], HP 1500 [cite: 41]
     'water': { 
-        cost: 50,  hp: 1500, range: 0,   damage: 0,   color: 0x3498db,
+        cost: 50,  hp: 1500, range: 0,   damage: 0,   color: 0x2980b9,
         description: 'Cost: $50\nDamage: 0\nAbility: Provides healing effect,\nrestores HP of nearby friendly units.'
     }, 
 
@@ -22,7 +22,7 @@ const TOWER_DATA = {
 
     // Wood Tower: Cost $75 [cite: 44], HP 1200 [cite: 45], Attack Damage 200 [cite: 48]
     'wood': { 
-        cost: 75, hp: 1200, range: 120, damage: 200, color: 0x2ecc71,
+        cost: 75, hp: 1200, range: 120, damage: 200, color: 0x27ae60,
         description: 'Cost: $75\nDamage: 200\nAbility: Attacks poison enemies, causing slow and DoT.'
     },
 

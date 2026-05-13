@@ -137,7 +137,7 @@ export class GameUI extends Phaser.Scene {
         if (tower.type === 'fire' || tower.type === 'wood') {
             extraStats = `\n⚔️ Damage: ${tower.damage || 0}`;
         } else if (tower.type === 'water') {
-            extraStats = `\n❤️ Heal: ${tower.healAmount || 25}`;
+            extraStats = `\n✚ Heal: ${tower.healAmount || 25}`;
         } else if (tower.type === 'gold') {
             let goldAmt = tower.isEarthBuffed ? (tower.buffedGold || 20) : (tower.baseGold || 10);
             extraStats = `\n🪙 Income: $${goldAmt} / 2s`;
