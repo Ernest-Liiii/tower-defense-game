@@ -1,7 +1,7 @@
 // this file is used to manage all the towers in the game,
 // it will be responsible for updating the towers, and also for creating new towers when the player buys them
 
-import {getEnemyInRange} from '../utils/towerHelpers.js';
+import {getEnemyInRange, getMultipleEnemiesInRange} from '../utils/towerHelpers.js';
 import {shoot} from '../utils/combatHelpers.js';
 
 export class TowerSystem {
@@ -169,16 +169,21 @@ export class TowerSystem {
 
         // Wood tower attack frequency is slower (e.g., 800ms)
         if (currentTime > tower.nextFire) {
-            let target = getEnemyInRange(tower, this.scene.enemies.getChildren());
-            if (target) {
+            // 升级木塔 让他现在可以最多攻击3个敌人
+            let targets = getMultipleEnemiesInRange(tower, this.scene.enemies.getChildren(), 3);
 
-                let bullet = shoot(this.scene, tower, target, this.scene.bullets, false); 
-                // Water -> Wood
-                if (bullet) {
-                    bullet.towerType = 'wood';
-                    bullet.isSuperPoison = tower.isWaterBuffed;
-                }
-                
+            if (targets && targets.length > 0) {
+
+                targets.forEach(target => {
+                    let bullet = shoot(this.scene, tower, target, this.scene.bullets, false); 
+                    
+                    if (bullet) {
+                        bullet.towerType = 'wood';
+                        // Water -> Wood 联动：水塔 Buff 会赋予超级毒素
+                        bullet.isSuperPoison = tower.isWaterBuffed; 
+                    }
+                });
+
                 let cooldown = tower.isWaterBuffed? cd * 0.7: cd;
                 tower.nextFire = currentTime + cooldown;
             }

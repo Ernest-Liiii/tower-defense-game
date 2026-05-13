@@ -51,6 +51,27 @@ export function getEnemyInRange(tower, enemies) {
     return target;
 }
 
+// this is a helper function to select multiple enemies in range of a tower, used for the wood tower's multi-target attack
+export function getMultipleEnemiesInRange(tower, enemies, maxCount = 3) {
+    let enemiesInRange = [];
+
+    // 1. 扫描所有存活且在射程内的敌人
+    enemies.forEach(enemy => {
+        if (enemy.active) {
+            let distance = Phaser.Math.Distance.Between(tower.x, tower.y, enemy.x, enemy.y);
+            if (distance <= tower.range) {
+                enemiesInRange.push(enemy);
+            }
+        }
+    });
+
+    // 2. 按照敌人的生成时间（或者距离）进行排序，优先攻击存活时间最长的敌人
+    enemiesInRange.sort((a, b) => a.spawnTime - b.spawnTime);
+
+    // 3. 截取并返回前 maxCount 个敌人（如果不足 maxCount 个，有几个返回几个）
+    return enemiesInRange.slice(0, maxCount);
+}
+
 // this is a helper function to draw the directional range of a fire tower
 export function drawDirectionalRange(graphics, cx, cy, dir, type, range = 0, alpha = 0.3, isWoodBuffed = false) {
     graphics.clear();

@@ -278,6 +278,11 @@ export class GameScene extends Phaser.Scene {
             // 🚨 终极护盾 1：防止鞭尸！如果怪物在这一帧已经死了，绝对不进行二次伤害和发钱！
             if (!enemy.active) return;
 
+            // 如果这发子弹有明确的目标，且碰到的敌人不是它的目标，就直接穿透（无视）！
+            if (bullet.target && bullet.target !== enemy) {
+                return;
+            }
+
             // 调用 helper 处理伤害，并接收是否击杀的结果
             let isKilled = hitEnemy(bullet, enemy);
 
