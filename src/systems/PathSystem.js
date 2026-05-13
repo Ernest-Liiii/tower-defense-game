@@ -26,7 +26,8 @@ export class PathSystem {
             let endNode = this.waypoints[i + 1];
             
             // Call BFS pathfinding algorithm
-            let pathSegment = this.findPathBFS(startNode, endNode);
+            // let pathSegment = this.findPathBFS(startNode, endNode);
+            let pathSegment = this.findPathAStar(startNode, endNode);
             
             // If a path segment cannot be found (blocked completely by towers), return false
             if (!pathSegment) {
@@ -128,5 +129,100 @@ export class PathSystem {
             }
             this.debugGraphics.strokePath();
         }
+    }
+
+    heuristic(nodeA, nodeB) {
+        return Math.abs(nodeA.col - nodeB.col) + Math.abs(nodeA.row - nodeB.row);
+    }
+
+    findPathAStar(start, target) {
+        let openSet = [start]; // 待探索的节点
+        let closedSet = new Set(); // 已探索的节点
+        let parentMap = new Map(); // 用于回溯路径
+
+        // 创建生成唯一 key 的函数
+        const toKey = (col, row) => `${col},${row}`;
+
+        // gScore: 从起点到当前节点的实际代价
+        let gScore = new Map();
+        gScore.set(toKey(start.col, start.row), 0);
+
+        // fScore: gScore + heuristic (预估总代价)
+        let fScore = new Map();
+        fScore.set(toKey(start.col, start.row), this.heuristic(start, target));
+
+        // 检查网格是否可行走
+        const isWalkable = (col, row) => {
+            if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
+            
+            let pixelX = col * this.cellSize + this.cellSize / 2;
+            let pixelY = row * this.cellSize + this.cellSize / 2;
+            
+            let hasTower = this.scene.towers.some(t => t.x === pixelX && t.y === pixelY);
+            return !hasTower; 
+        };
+
+        const directions = [
+            { c: 0, r: -1 }, { c: 0, r: 1 }, 
+            { c: -1, r: 0 }, { c: 1, r: 0 }
+        ];
+
+        while (openSet.length > 0) {
+            // 在 openSet 中找到 fScore 最小的节点
+            // (因为地图只有 20x15，直接 sort 性能完全足够。若地图极大，可改用最小堆 Min-Heap)
+            openSet.sort((a, b) => {
+                let aKey = toKey(a.col, a.row);
+                let bKey = toKey(b.col, b.row);
+                return (fScore.get(aKey) || Infinity) - (fScore.get(bKey) || Infinity);
+            });
+
+            let current = openSet.shift(); // 取出优先级最高的节点
+            let currentKey = toKey(current.col, current.row);
+
+            // 到达目标！开始回溯路径
+            if (current.col === target.col && current.row === target.row) {
+                let path = [];
+                let curr = current;
+                while (curr) {
+                    path.push(curr);
+                    curr = parentMap.get(toKey(curr.col, curr.row));
+                }
+                return path.reverse(); 
+            }
+
+            // 将当前节点放入已探索集合
+            closedSet.add(currentKey);
+
+            // 探索四个方向
+            for (let dir of directions) {
+                let nextCol = current.col + dir.c;
+                let nextRow = current.row + dir.r;
+                let nextKey = toKey(nextCol, nextRow);
+
+                // 如果不可行走，或者已经探索过，直接跳过
+                if (!isWalkable(nextCol, nextRow) || closedSet.has(nextKey)) {
+                    continue;
+                }
+
+                // 相邻网格的移动代价为 1
+                let tentative_gScore = gScore.get(currentKey) + 1;
+
+                let neighbor = { col: nextCol, row: nextRow };
+                let isNeighborInOpenSet = openSet.some(n => n.col === nextCol && n.row === nextRow);
+
+                // 如果发现了一条更近的路径，或者这是一个新节点
+                if (!isNeighborInOpenSet || tentative_gScore < (gScore.get(nextKey) || Infinity)) {
+                    parentMap.set(nextKey, current); // 记录路径
+                    gScore.set(nextKey, tentative_gScore); // 更新 gScore
+                    fScore.set(nextKey, tentative_gScore + this.heuristic(neighbor, target)); // 更新 fScore
+
+                    if (!isNeighborInOpenSet) {
+                        openSet.push(neighbor); // 加入待探索队列
+                    }
+                }
+            }
+        }
+
+        return null; // 路径被完全堵死
     }
 }

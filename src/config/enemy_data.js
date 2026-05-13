@@ -19,7 +19,17 @@ const ENEMY_DATA = {
         textureKey: 'ranged_goblin',
         attackRange: 150, 
         attackCooldown: 4000
-    }  
+    }, 
+
+    'flying': {
+        hp: 1000, 
+        speed: 55, 
+        damage: 80,
+        textureKey: 'flying', 
+        attackRange: 45,
+        attackCooldown: 2000,
+        isFlying: true
+    }
 };
 
 export { ENEMY_DATA };

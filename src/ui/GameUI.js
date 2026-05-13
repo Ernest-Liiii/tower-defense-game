@@ -52,11 +52,33 @@ export class GameUI extends Phaser.Scene {
         // ===== Modification 3: Bind tower selection events =====
         pauseBtn.on('pointerdown', () => { gameScene.scene.pause(); this.scene.launch('PauseScene'); });
         
+        // record the selected tower
+        this.inspectedTower = null;
         const selectTower = (type, name, data) => {
             gameScene.currentSelectedTower = type;
             this.selectedText.setText(`👉 Current: ${name}`);
             this.towerInfoText.setText(data.description);
+            this.inspectedTower = null;
         };
+
+        // 监听来自 BuildingSystem 的查看塔事件
+        gameScene.events.on('showTowerDetails', (tower) => {
+            this.inspectedTower = tower;
+            this.updateTowerDetails(); // 立即更新一次
+        });
+
+        // 监听取消查看事件（点击空白处时恢复原状）
+        gameScene.events.on('restoreBuildMenu', () => {
+            if (this.inspectedTower) {
+                this.inspectedTower = null;
+                // 恢复显示当前选中的建造塔信息
+                let currentType = gameScene.currentSelectedTower;
+                let tData = TOWER_DATA[currentType];
+                let names = { 'gold': 'Gold', 'water': 'Water', 'fire': 'Fire', 'wood': 'Wood', 'earth': 'Earth' };
+                this.selectedText.setText(`👉 Current: ${names[currentType]} Tower`);
+                this.towerInfoText.setText(tData.description);
+            }
+        });
 
         btnGold.on('pointerdown', () => selectTower('gold', 'Gold Tower', TOWER_DATA.gold));
         btnWater.on('pointerdown', () => selectTower('water', 'Water Tower', TOWER_DATA.water));
@@ -80,6 +102,55 @@ export class GameUI extends Phaser.Scene {
         gameScene.events.on('updateWave', (current, total) => this.waveText.setText(`🌊 Wave: ${current} / ${total}`));
         gameScene.events.on('gameOver', () => this.showGameOver());
         gameScene.events.on('levelWon', () => this.showVictory());
+    }
+
+    // UI 场景的逐帧更新，用于实时刷新塔的血量和护盾
+    update() {
+        if (this.inspectedTower) {
+            // 如果塔还活着，就持续更新它的数据
+            if (this.inspectedTower.active) {
+                this.updateTowerDetails();
+            } else {
+                // 如果塔被卖掉或被打爆了，清除查看状态
+                this.inspectedTower = null;
+                this.selectedText.setText('👉 Action');
+                this.towerInfoText.setText('Tower removed or destroyed.');
+            }
+        }
+    }
+
+    updateTowerDetails() {
+        if (!this.inspectedTower || !this.inspectedTower.active) return;
+        
+        let tower = this.inspectedTower;
+        let typeNames = { 'gold': 'Gold', 'water': 'Water', 'fire': 'Fire', 'wood': 'Wood', 'earth': 'Earth' };
+        
+        // 1. 显示塔的类型和当前等级
+        this.selectedText.setText(`🔍 Inspect: ${typeNames[tower.type]} LV.${tower.level || 1}`);
+        
+        // 2. 抓取实时血量和护盾
+        let hpText = `❤️ HP: ${Math.floor(tower.hp)} / ${tower.maxHp}`;
+        let shieldText = (tower.shield && tower.shield > 0) ? `\n🛡️ Shield: ${Math.floor(tower.shield)}` : '';
+        
+        // 3. 动态抓取塔的特有属性（兼容了升级后的数值改变）
+        let extraStats = '';
+        if (tower.type === 'fire' || tower.type === 'wood') {
+            extraStats = `\n⚔️ Damage: ${tower.damage || 0}`;
+        } else if (tower.type === 'water') {
+            extraStats = `\n❤️ Heal: ${tower.healAmount || 25}`;
+        } else if (tower.type === 'gold') {
+            let goldAmt = tower.isEarthBuffed ? (tower.buffedGold || 20) : (tower.baseGold || 10);
+            extraStats = `\n🪙 Income: $${goldAmt} / 2s`;
+        } else if (tower.type === 'earth') {
+            extraStats = `\n💫 Stun Dur: ${tower.stunDuration || 1000}ms`;
+        }
+
+        // 4. 计算当前能卖多少钱
+        let sellPrice = Math.floor(tower.cost * 0.5);
+        let valueText = `\n💰 Sell Value: $${sellPrice}`;
+
+        // 把所有文字拼装起来显示
+        this.towerInfoText.setText(`${hpText}${shieldText}${extraStats}${valueText}`);
     }
 
     showGameOver() {

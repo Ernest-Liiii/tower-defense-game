@@ -19,6 +19,13 @@ export class TowerSystem {
             // update the status effects on the enemies
             this.updateStatusEffects(currentTime);
 
+            if (tower.shield && tower.shield > 0) {
+                // if exceed 2500 ms, then shield become 0
+                if (currentTime - (tower.lastShieldTime || 0) > 2500) {
+                    tower.shield = 0;
+                }
+            }
+
             // initialize cooldown timers for the tower if they haven't been set yet
             if (!tower.isCooldownInitialized) {
                 tower.nextFire = currentTime + 500;
@@ -50,6 +57,8 @@ export class TowerSystem {
 
     // ============== tower handling methods ==============
     handleFireTower(tower, currentTime) {
+        let cd = tower.cooldown || 500;
+
         if (currentTime > tower.nextFire) {
             let target = getEnemyInRange(tower, this.scene.enemies.getChildren());
             if (target) {
@@ -57,7 +66,7 @@ export class TowerSystem {
                 // let isBuffed = this.checkWaterBuff(tower); 
                 shoot(this.scene, tower, target, this.scene.bullets);
                 
-                tower.nextFire = (currentTime - tower.nextFire > 500) ? currentTime + 500 : tower.nextFire + 500;
+                tower.nextFire = (currentTime - tower.nextFire > cd) ? currentTime + cd : tower.nextFire + cd;
             }
         }
     }
@@ -66,7 +75,10 @@ export class TowerSystem {
         if (currentTime > tower.nextGoldTime) {
             // if gold tower is in earth tower range, increase the gold production amount.
             // Earth -> Gold
-            let goldAmount = tower.isEarthBuffed? 20: 10;
+            let baseG = tower.baseGold || 10;
+            let buffedG = tower.buffedGold || 20;
+
+            let goldAmount = tower.isEarthBuffed ? buffedG : baseG;
             this.scene.playerMoney += goldAmount;
 
             let color = tower.isEarthBuffed? '#FFAA00': '#FFD700';
@@ -80,11 +92,15 @@ export class TowerSystem {
 
     handleWaterTower(tower, currentTime) {
         if (currentTime > tower.nextHealTime) {
+            let healAmt = tower.healAmount || 25;
+            let sMax = tower.shieldMax || 50;
+            let hRange = tower.healRange || 100;
+
             this.scene.towers.forEach(targetTower => {
-                if (this.isInRange(tower, targetTower, 100)) {
+                if (this.isInRange(tower, targetTower, hRange)) {
                     if (targetTower.hp < targetTower.maxHp) {
-                        targetTower.hp = Math.min(targetTower.hp + 25, targetTower.maxHp);
-                        this.showFloatingText(targetTower.x, targetTower.y, '+25 HP', '#00ff00');
+                        targetTower.hp = Math.min(targetTower.hp + healAmt, targetTower.maxHp);
+                        this.showFloatingText(targetTower.x, targetTower.y, `+${healAmt} HP`, '#00ff00');
                     }
                 }
 
@@ -92,15 +108,17 @@ export class TowerSystem {
                 if (tower.isGoldBuffed) {
                     if (!targetTower.shield) targetTower.shield = 0;  // initialize
 
-                    if (targetTower.shield < 50) {
+                    if (targetTower.shield < sMax) {
                         let oldShield = targetTower.shield;
-                        targetTower.shield = Math.min(targetTower.shield + 20, 50);
+                        targetTower.shield = Math.min(targetTower.shield + (sMax * 0.4), sMax);
 
-                        let added = targetTower.shield - oldShield;
+                        let added = Math.round(targetTower.shield - oldShield);
                         if (added > 0) {
                             this.showFloatingText(targetTower.x, targetTower.y - 15, `+${added} Shield`, '#FFFFFF');
                         }
                     }
+
+                    targetTower.lastShieldTime = currentTime;
                 }
             });
             tower.nextHealTime += 1000;
@@ -108,6 +126,8 @@ export class TowerSystem {
     }
 
     handleWoodTower(tower, currentTime) {
+        let cd = tower.cooldown || 800;
+
         // Wood tower attack frequency is slower (e.g., 800ms)
         if (currentTime > tower.nextFire) {
             let target = getEnemyInRange(tower, this.scene.enemies.getChildren());
@@ -120,13 +140,16 @@ export class TowerSystem {
                     bullet.isSuperPoison = tower.isWaterBuffed;
                 }
                 
-                let cooldown = tower.isWaterBuffed? 800 * 0.7: 800;
+                let cooldown = tower.isWaterBuffed? cd * 0.7: cd;
                 tower.nextFire = currentTime + cooldown;
             }
         }
     }
 
     handleEarthTower(tower, currentTime) {
+        let stunDur = tower.stunDuration || 1000;
+        let baseCd = tower.baseCooldown || 5000;
+
         // Earth tower: triggers earthquake every 3 seconds, stuns all nearby enemies
         if (currentTime > tower.nextFire) {
             let hitAny = false;
@@ -136,7 +159,7 @@ export class TowerSystem {
                     hitAny = true;
                     // Apply stun status
                     enemy.isStunned = true;
-                    enemy.stunEndTime = currentTime + 1000; // Stun for 1 second
+                    enemy.stunEndTime = currentTime + stunDur; // Stun for 1 second
                     
                     // Built-in Phaser method to stop enemy path following
                     if (enemy.pauseFollow) enemy.pauseFollow();
@@ -147,8 +170,9 @@ export class TowerSystem {
 
             // If hit any enemies, 5 second cooldown; if not, check again in 2 seconds
             // Fire -> Earth
-            let cooldown = tower.isFireBuffed? 3000: 5000;
-            tower.nextFire = currentTime + (hitAny? cooldown : 2000);
+            let buffedCd = baseCd * 0.6; 
+            let cooldown = tower.isFireBuffed ? buffedCd : baseCd;
+            tower.nextFire = currentTime + (hitAny ? cooldown : 2000);
         }
     }
 

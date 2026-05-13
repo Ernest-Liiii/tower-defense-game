@@ -51,6 +51,10 @@ export class EnemyAttackSystem {
                     
                     // If tower HP drops to zero, tower is destroyed!
                     if (targetTower.hp <= 0) {
+                        if (targetTower.rangeGraphic) targetTower.rangeGraphic.destroy();
+                        if (targetTower.levelAura) targetTower.levelAura.destroy();
+                        if (targetTower.debugText) targetTower.debugText.destroy();
+                        
                         targetTower.destroy(); // Destroy tower image
                         targetTower.active = false; 
 

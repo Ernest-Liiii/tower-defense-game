@@ -206,8 +206,12 @@ export class BuildingSystem {
                 tower.rangeGraphic = this.scene.add.rectangle(centerX, centerY, 200, 200, 0x3498db, 0.15);
             }
 
+            tower.level = 1;
+            tower.setDepth(2);
+
             // Add the tower to the tower array in GameScene
             this.scene.towers.push(tower);
+            this.scene.UpgradeSystem.updateTowerLevelAura(tower);
 
             // recalculate the path and update to phaser
             this.scene.pathSystem.recalculatePath();
@@ -237,28 +241,77 @@ export class BuildingSystem {
         this.towerMenu.setDepth(200);
 
         // Calculate upgrade cost and sell price
-        let upgradeCost = tower.cost; // Assume upgrade cost equals build cost
+        // let upgradeCost = tower.cost; // Assume upgrade cost equals build cost
         let sellPrice = Math.floor(tower.cost * 0.5); // Sell for 50% refund
 
+        // // 1. Upgrade button (blue)
+        // let upgBtn = this.scene.add.text(2, -20, `⬆️ Upgrade($${upgradeCost})`, { 
+        //     fontSize: '12px', fill: '#fff', backgroundColor: '#0984e3', padding: {x:4, y:4} 
+        // }).setInteractive().setOrigin(0, 0.5);
+        // upgBtn.isMenuBtn = true; // Mark to prevent triggering build
+
+        // upgBtn.on('pointerdown', () => this.upgradeTower(tower, upgradeCost));
+
+        // // If max level (e.g., level 3) or not enough money, button becomes gray
+        // if (tower.level >= 3) {
+        //     upgBtn.setText('MAX');
+        //     upgBtn.setStyle({ backgroundColor: '#636e72' });
+        //     upgBtn.disableInteractive();
+        // } else if (this.scene.playerMoney < upgradeCost) {
+        //     upgBtn.setStyle({ backgroundColor: '#636e72' });
+        // }
+
+        // // 2. Sell button (red)
+        // let sellBtn = this.scene.add.text(-2, -20, `💰 Sell(+$${sellPrice})`, { 
+        //     fontSize: '12px', fill: '#fff', backgroundColor: '#d63031', padding: {x:4, y:4} 
+        // }).setInteractive().setOrigin(1, 0.5);
+        // sellBtn.isMenuBtn = true;
+
+        // sellBtn.on('pointerdown', () => this.sellTower(tower, sellPrice));
+
+        // this.towerMenu.add([sellBtn, upgBtn]);
+
+        let currentLevel = tower.level || 1;
+        let nextLevel = currentLevel + 1;
+        let isMaxLevel = currentLevel >= 3;
+
         // 1. Upgrade button (blue)
-        let upgBtn = this.scene.add.text(2, -20, `⬆️ Upgrade($${upgradeCost})`, { 
-            fontSize: '12px', fill: '#fff', backgroundColor: '#0984e3', padding: {x:4, y:4} 
-        }).setInteractive().setOrigin(0, 0.5);
-        upgBtn.isMenuBtn = true; // Mark to prevent triggering build
+        let upgBtn;
+        
+        if (isMaxLevel) {
+            // 如果满级了，显示 MAX LEVEL
+            upgBtn = this.scene.add.text(2, -20, `MAX LEVEL`, { 
+                fontSize: '12px', fill: '#fff', backgroundColor: '#636e72', padding: {x:4, y:4} 
+            }).setOrigin(0, 0.5);
+            upgBtn.isMenuBtn = true;
+        } else {
+            // 如果没满级，从 UpgradeSystem 的配置表里读取升级价格
+            let upgradeCost = this.scene.UpgradeSystem.upgradeData[tower.type][nextLevel].cost;
+            
+            upgBtn = this.scene.add.text(2, -20, `⬆️($${upgradeCost})`, { 
+                fontSize: '12px', fill: '#fff', backgroundColor: '#0984e3', padding: {x:4, y:4} 
+            }).setInteractive().setOrigin(0, 0.5);
+            upgBtn.isMenuBtn = true;
 
-        upgBtn.on('pointerdown', () => this.upgradeTower(tower, upgradeCost));
+            // 钱不够的话按钮变灰
+            if (this.scene.playerMoney < upgradeCost) {
+                upgBtn.setStyle({ backgroundColor: '#636e72' });
+            }
 
-        // If max level (e.g., level 3) or not enough money, button becomes gray
-        if (tower.level >= 3) {
-            upgBtn.setText('MAX');
-            upgBtn.setStyle({ backgroundColor: '#636e72' });
-            upgBtn.disableInteractive();
-        } else if (this.scene.playerMoney < upgradeCost) {
-            upgBtn.setStyle({ backgroundColor: '#636e72' });
+            // 点击时，呼叫我们新写的 UpgradeSystem
+            upgBtn.on('pointerdown', () => {
+                let success = this.scene.UpgradeSystem.upgradeTower(tower);
+                // 如果升级成功，我们可以选择关闭菜单；如果没钱失败，就留着菜单
+                if (success) {
+                    // 更新塔的价值，这样卖出的时候可以返还更多的钱
+                    tower.cost += upgradeCost; 
+                    this.hideTowerMenu();
+                }
+            });
         }
 
         // 2. Sell button (red)
-        let sellBtn = this.scene.add.text(-2, -20, `💰 Sell(+$${sellPrice})`, { 
+        let sellBtn = this.scene.add.text(-2, -20, `💰(+$${sellPrice})`, { 
             fontSize: '12px', fill: '#fff', backgroundColor: '#d63031', padding: {x:4, y:4} 
         }).setInteractive().setOrigin(1, 0.5);
         sellBtn.isMenuBtn = true;
@@ -266,41 +319,45 @@ export class BuildingSystem {
         sellBtn.on('pointerdown', () => this.sellTower(tower, sellPrice));
 
         this.towerMenu.add([sellBtn, upgBtn]);
+
+        this.scene.events.emit('showTowerDetails', tower);
     }
 
     hideTowerMenu() {
         if (this.towerMenu) {
             this.towerMenu.destroy();
             this.towerMenu = null;
+
+            this.scene.events.emit('restoreBuildMenu');
         }
     }
 
-    upgradeTower(tower, cost) {
-        if (this.scene.playerMoney >= cost && tower.level < 3) {
-            // Deduct cost
-            this.scene.playerMoney -= cost;
-            this.scene.events.emit('updateMoney', this.scene.playerMoney);
+    // upgradeTower(tower, cost) {
+    //     if (this.scene.playerMoney >= cost && tower.level < 3) {
+    //         // Deduct cost
+    //         this.scene.playerMoney -= cost;
+    //         this.scene.events.emit('updateMoney', this.scene.playerMoney);
 
-            // Upgrade stats (simple: increase damage by 50%, or add effect for gold/water towers)
-            tower.level++;
-            tower.damage = Math.floor(tower.damage * 1.5);
-            tower.maxHp += 50;
-            tower.hp += 50;
+    //         // Upgrade stats (simple: increase damage by 50%, or add effect for gold/water towers)
+    //         tower.level++;
+    //         tower.damage = Math.floor(tower.damage * 1.5);
+    //         tower.maxHp += 50;
+    //         tower.hp += 50;
             
-            // Visual feedback: increase scale slightly or add aura
-            tower.scale += 0.1; 
+    //         // Visual feedback: increase scale slightly or add aura
+    //         tower.scale += 0.1; 
             
-            // Floating text indicator
-            let upgText = this.scene.add.text(tower.x, tower.y - 20, 'Level UP!', { fill: '#00ff00', fontStyle: 'bold' }).setOrigin(0.5);
-            this.scene.tweens.add({ targets: upgText, y: tower.y - 50, alpha: 0, duration: 1000, onComplete: () => upgText.destroy() });
+    //         // Floating text indicator
+    //         let upgText = this.scene.add.text(tower.x, tower.y - 20, 'Level UP!', { fill: '#00ff00', fontStyle: 'bold' }).setOrigin(0.5);
+    //         this.scene.tweens.add({ targets: upgText, y: tower.y - 50, alpha: 0, duration: 1000, onComplete: () => upgText.destroy() });
 
-            this.hideTowerMenu();
-        } else {
-            // Insufficient funds warning
-            let warning = this.scene.add.text(tower.x, tower.y - 20, 'Insufficient funds!', { fill: '#ff0000' }).setOrigin(0.5);
-            this.scene.time.delayedCall(1000, () => warning.destroy());
-        }
-    }
+    //         this.hideTowerMenu();
+    //     } else {
+    //         // Insufficient funds warning
+    //         let warning = this.scene.add.text(tower.x, tower.y - 20, 'Insufficient funds!', { fill: '#ff0000' }).setOrigin(0.5);
+    //         this.scene.time.delayedCall(1000, () => warning.destroy());
+    //     }
+    // }
 
     sellTower(tower, price) {
         // Add money
@@ -310,6 +367,10 @@ export class BuildingSystem {
         // Destroy bound attack range indicator
         if (tower.rangeGraphic) {
             tower.rangeGraphic.destroy();
+        }
+
+        if (tower.levelAura) {
+            tower.levelAura.destroy();
         }
 
         // for debugging only

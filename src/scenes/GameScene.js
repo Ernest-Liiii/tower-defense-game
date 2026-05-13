@@ -14,6 +14,7 @@ import { EnemyAttackSystem } from '../systems/EnemyAttackSystem.js';
 import { TowerSystem } from '../systems/TowerSystem.js';
 import { MusicSystem } from '../systems/MusicSystem.js';
 import { ReactionSystem } from '../systems/ReactionSystem.js';
+import { UpgradeSystem } from '../systems/UpgradeSystem.js';
 
 // import the data for levels and towers
 import { LEVEL_DATA } from '../config/level_data.js';
@@ -67,8 +68,11 @@ export class GameScene extends Phaser.Scene {
         // initialize the Tower System
         this.towerSystem = new TowerSystem(this);
 
-        // initialize th Reaction System
+        // initialize the Reaction System
         this.ReactionSystem = new ReactionSystem(this);
+
+        // initialize the Upgrade System
+        this.UpgradeSystem = new UpgradeSystem(this);
     }
 
     // 【新增】預載入遊戲素材
@@ -88,6 +92,7 @@ export class GameScene extends Phaser.Scene {
         // load the textures of the enemies
         this.load.image('slime', 'assets/images/Slime.png');
         this.load.image('ranged_goblin', 'assets/images/RangedGoblin.png');
+        this.load.image('flying', 'assets/images/Flying.png')
 
         // load the textures of the towers
         this.load.image('water_tower', 'assets/images/WaterTower.png')
@@ -120,6 +125,22 @@ export class GameScene extends Phaser.Scene {
             for (let i = 1; i < this.pathSystem.currentFullPath.length; i++) {
                 let p = this.pathSystem.currentFullPath[i];
                 this.path.lineTo(p.x, p.y);
+            }
+        }
+
+        if (this.pathSystem.waypoints.length > 0) {
+            let startWp = this.pathSystem.waypoints[0];
+            let startX = startWp.col * this.cellSize + this.cellSize / 2;
+            let startY = startWp.row * this.cellSize + this.cellSize / 2;
+
+            this.flyingPath = this.add.path(startX, startY);
+
+            // 直接将点与点之间拉直线
+            for (let i = 1; i < this.pathSystem.waypoints.length; i++) {
+                let wp = this.pathSystem.waypoints[i];
+                let wpX = wp.col * this.cellSize + this.cellSize / 2;
+                let wpY = wp.row * this.cellSize + this.cellSize / 2;
+                this.flyingPath.lineTo(wpX, wpY);
             }
         }
 
@@ -364,16 +385,27 @@ export class GameScene extends Phaser.Scene {
 
         let textureToUse = config.textureKey ? config.textureKey : 'enemyTexture';
 
+        let isFlying = config.isFlying || false;
+        let pathToFollow = isFlying ? this.flyingPath : this.path;
+
         // 2. 建立敵人實體並加入群組 (動態讀取起點座標)
-        let startX = this.pathSystem.currentFullPath[0].x;
-        let startY = this.pathSystem.currentFullPath[0].y;
-        let enemy = this.add.follower(this.path, startX, startY, textureToUse);
+        let startPoint = pathToFollow.getStartPoint();
+        let startX = startPoint.x;
+        let startY = startPoint.y;
+
+        let enemy = this.add.follower(pathToFollow, startX, startY, textureToUse);
         this.enemies.add(enemy);
 
-        enemy.setDepth(2);
+        enemy.setDepth(isFlying ? 5 : 2);
+
+        enemy.isFlying = isFlying;
         
         // enemy.setDisplaySize(this.cellSize, this.cellSize);
-        enemy.setDisplaySize(30, 30);
+        if (isFlying) {
+            enemy.setDisplaySize(45, 45); 
+        } else {
+            enemy.setDisplaySize(30, 30); // 地面敌人保持原来的大小
+        }
         
         // 3. 套用設定檔裡的數值
         enemy.hp = config.hp; 
@@ -389,7 +421,7 @@ export class GameScene extends Phaser.Scene {
 
         // 4. 計算走完路徑所需的時間 (時間 = 距離 / 速度)
         // 假設路徑總長度約為 1440 像素，乘以 1000 轉換為毫秒
-        const pathLength = this.path.getLength(); 
+        const pathLength = pathToFollow.getLength(); 
         const duration = (pathLength / config.speed) * 1000;
 
         // 5. 開始沿著路徑移動
@@ -495,6 +527,8 @@ export class GameScene extends Phaser.Scene {
     updateEnemiesPath() {
         this.enemies.getChildren().forEach(enemy => {
             if (!enemy.active) return;
+
+            if (enemy.isFlying) return;
 
             // 1. stop!!!
             enemy.stopFollow();
