@@ -63,6 +63,17 @@ const ENEMY_DATA = {
         attackRange: 20,
         textureKey: 'mini_slime'
     },
+
+    'elemental_devourer': {
+        hp: 38000,             // 血量极厚
+        speed: 20,             // 移动缓慢，给玩家足够的时间应对机制
+        damage: 400,
+        textureKey: 'elemental_devourer',
+        attackRange: 100,      // 攻击范围较大，迫使玩家保持距离
+        attackCooldown: 3000,  // 攻击频率适中，增加威胁感
+        isBoss: true,          // 标记为 Boss
+        bossType: 'devourer'   // 专属 Boss 标记，用于触发机制
+    },
 };
 
 export { ENEMY_DATA };

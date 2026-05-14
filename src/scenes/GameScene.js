@@ -96,6 +96,7 @@ export class GameScene extends Phaser.Scene {
         this.load.image('boss_slime', 'assets/images/BossSlime.png');
         this.load.image('middle_slime', 'assets/images/MiddleSlime.png');
         this.load.image('mini_slime', 'assets/images/MiniSlime.png');
+        this.load.image('elemental_devourer', 'assets/images/ElementalDevourer.png');
 
         // load the textures of the towers
         this.load.image('water_tower', 'assets/images/WaterTower.png')
@@ -286,6 +287,17 @@ export class GameScene extends Phaser.Scene {
                 return;
             }
 
+            // boss 免疫护盾检测
+            if (enemy.currentImmunity === bullet.towerType) {
+                // 如果当前免疫此塔的属性，子弹直接销毁，不造成任何伤害和负面效果
+                bullet.destroy();
+                if (bullet.trailEmitter) bullet.trailEmitter.destroy();
+                
+                let immuneText = this.add.text(enemy.x, enemy.y, 'IMMUNE', { fill: '#cccccc', fontSize: '12px' });
+                this.tweens.add({ targets: immuneText, y: enemy.y - 30, alpha: 0, duration: 800, onComplete: () => immuneText.destroy() });
+                return; // 直接返回，跳过后面的伤害、爆炸、上毒逻辑！
+            }
+
             // 调用 helper 处理伤害，并接收是否击杀的结果
             let isKilled = hitEnemy(bullet, enemy);
 
@@ -474,6 +486,10 @@ export class GameScene extends Phaser.Scene {
             if (enemy.active && enemy.hp < enemy.maxHp) {
                 this.drawHpBar(enemy.x, enemy.y - 20, enemy.hp, enemy.maxHp, true);
             }
+
+            if (enemy.active && enemy.bossType === 'devourer') {
+                this.handleDevourerLogic(enemy, currentTime);
+            }
         });
     }
     
@@ -507,6 +523,8 @@ export class GameScene extends Phaser.Scene {
         // enemy.setDisplaySize(this.cellSize, this.cellSize);
         if (bossTextureKey === 'boss_slime') {
             enemy.setDisplaySize(90, 45);
+        } else if (bossTextureKey === 'elemental_devourer') {
+            enemy.setDisplaySize(80, 80);
         }
         else if (isFlying) {
             enemy.setDisplaySize(55, 55); 
@@ -522,6 +540,7 @@ export class GameScene extends Phaser.Scene {
         enemy.attackCooldown = config.attackCooldown;
         enemy.nextAttack = 0;   
         enemy.spawnTime = currentTime; 
+        enemy.bossType = config.bossType || null;
 
         // let enemy remember its speed
         enemy.speed = config.speed;
@@ -549,6 +568,8 @@ export class GameScene extends Phaser.Scene {
     onEnemyReachEnd(enemy) {
         if (enemy && enemy.active) {
             enemy.destroy(); 
+
+            if (enemy.shieldEmitter) enemy.shieldEmitter.destroy();
                     
             this.playerLives -= 1; 
 
@@ -787,6 +808,130 @@ export class GameScene extends Phaser.Scene {
                 }
             });
         }
+    }
+
+    handleDevourerLogic(boss, currentTime) {
+        // 1. 初始化 Boss 状态 (刚出生时触发)
+        if (!boss.devourerInitialized) {
+            boss.isPhase2 = false;
+            boss.nextShieldTime = currentTime + 30000; // 30秒后刷新护盾
+            boss.nextSealTime = currentTime + 10000;   // 10秒后封印
+            boss.currentImmunity = Phaser.Math.RND.pick(['wood', 'fire']); // 初始随机免疫一个
+            boss.devourerInitialized = true;
+            
+            // 飘字提示当前免疫
+            this.showBossText(boss, `Immune: ${boss.currentImmunity.toUpperCase()}!`, '#00ffff');
+
+            let tex = boss.currentImmunity === 'fire' ? 'spark' : 'poison_spore';
+            let blend = boss.currentImmunity === 'fire' ? 'ADD' : 'NORMAL';
+            
+            // 为 Boss 添加一个持续的护盾粒子特效，颜色和混合模式根据当前免疫属性变化
+            boss.shieldEmitter = this.add.particles(0, 0, tex, {
+                // 去掉外扩的 speed，让粒子留在圆环上
+                scale: { start: 1.2, end: 0 },
+                alpha: { start: 0.8, end: 0 },
+                lifespan: 600,
+                frequency: 20, // 频率调快，让圈圈更密集
+                blendMode: blend,
+                emitZone: {
+                    type: 'edge',
+                    source: new Phaser.Geom.Circle(0, 0, 45), // 45 是护盾的半径，刚好包住 Boss
+                    quantity: 40 // 圆环由 40 个生成点组成
+                }
+            });
+            boss.shieldEmitter.setDepth(boss.depth + 1);
+            boss.shieldEmitter.startFollow(boss);
+        }
+
+        // 2. 阶段转换检测 (血量低于 50% 且还没进 P2)
+        if (!boss.isPhase2 && boss.hp <= boss.maxHp * 0.5) {
+            boss.isPhase2 = true;
+            boss.setTint(0xff0000); // 身体变红！
+            boss.currentImmunity = 'earth'; // 失去火/木护盾，获得土系(眩晕)免疫
+            this.showBossText(boss, 'PHASE 2: Earth Immune & Double Seal!', '#ff0000');
+
+            // 解除眩晕状态
+            boss.isStunned = false;
+            if (boss.resumeFollow) boss.resumeFollow();
+
+            // 销毁旧护盾
+            if (boss.shieldEmitter) boss.shieldEmitter.destroy();
+            boss.shieldEmitter = this.add.particles(0, 0, 'earth_dust', {
+                scale: { start: 1.5, end: 0 },
+                alpha: { start: 0.8, end: 0 },
+                lifespan: 800,
+                frequency: 30,
+                rotate: { start: 0, end: 360 }, // 碎石翻滚
+                // 同样加上圆环边缘属性，土系护盾稍微大一点！
+                emitZone: {
+                    type: 'edge',
+                    source: new Phaser.Geom.Circle(0, 0, 50), // 碎石环绕圈大一点
+                    quantity: 36
+                }
+            });
+            boss.shieldEmitter.setDepth(boss.depth + 1);
+            boss.shieldEmitter.startFollow(boss);
+        }
+
+        // 3. 护盾刷新机制 (仅限第一阶段，每 30 秒触发)
+        if (!boss.isPhase2 && currentTime >= boss.nextShieldTime) {
+            boss.currentImmunity = Phaser.Math.RND.pick(['wood', 'fire']);
+            this.showBossText(boss, `Immune: ${boss.currentImmunity.toUpperCase()}!`, '#00ffff');
+            
+            if (boss.shieldEmitter) {
+                boss.shieldEmitter.setTexture(boss.currentImmunity === 'fire' ? 'spark' : 'poison_spore');
+                boss.shieldEmitter.blendMode = boss.currentImmunity === 'fire' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL;
+            }
+
+            boss.nextShieldTime = currentTime + 30000; // 重置冷却
+        }
+
+        // 4. 封印塔机制 (每 10 秒触发)
+        if (currentTime >= boss.nextSealTime) {
+            let sealCount = boss.isPhase2 ? 2 : 1; // P2 封两座，P1 封一座
+            this.sealRandomTowers(sealCount, currentTime);
+            boss.nextSealTime = currentTime + 10000; // 重置冷却
+        }
+    }
+
+    // 封印地图上的随机防御塔
+    sealRandomTowers(count, currentTime) {
+        let activeTowers = this.towers.filter(t => t.active && !t.isSealed); // 找出还没被封印的存活塔
+        if (activeTowers.length === 0) return;
+
+        // 随机打乱塔的数组并抽取
+        Phaser.Utils.Array.Shuffle(activeTowers);
+        let targets = activeTowers.slice(0, count);
+
+        targets.forEach(tower => {
+            tower.isSealed = true;
+            tower.sealEndTime = currentTime + 10000; // 封印 10 秒
+            tower.setTint(0x555555); // 塔变灰暗，表示被封印
+            
+            let sealText = this.add.text(tower.x, tower.y - 20, 'SEALED!', { fill: '#a832a8', fontStyle: 'bold' }).setOrigin(0.5);
+            this.tweens.add({ targets: sealText, y: tower.y - 50, alpha: 0, duration: 1500, onComplete: () => sealText.destroy() });
+
+            // 为被封印的塔增加“暗紫气场”特效
+            let sealEmitter = this.add.particles(tower.x, tower.y, 'water_bubble', {
+                tint: 0x8a2be2,                   // 将原本的水泡染成暗紫色
+                speed: { min: -10, max: 10 },     // 像沼泽一样黏稠地冒泡
+                scale: { start: 0.8, end: 0 },
+                alpha: { start: 0.7, end: 0 },
+                lifespan: 800,
+                frequency: 80
+            });
+            sealEmitter.setDepth(15);
+            tower.sealEmitter = sealEmitter;      // 存到塔身上，解封时销毁
+            
+            // 封印时，暂停塔原有的待机特效（比如金塔的星星停止闪烁）
+            if (tower.emitter) tower.emitter.pause();
+        });
+    }
+
+    // 在 Boss 头顶飘专属技能提示的 helper
+    showBossText(enemy, text, color) {
+        let txt = this.add.text(enemy.x, enemy.y - 50, text, { fill: color, fontStyle: 'bold', fontSize: '16px' }).setOrigin(0.5);
+        this.tweens.add({ targets: txt, y: enemy.y - 80, alpha: 0, duration: 2500, onComplete: () => txt.destroy() });
     }
 
     // 原本寫在全域的輔助函數 (例如 getEnemyInRange, shoot) 

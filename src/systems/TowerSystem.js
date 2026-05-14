@@ -13,6 +13,10 @@ export class TowerSystem {
     update(currentTime) {
         if (!this.scene || !this.scene.towers) return;
 
+        if (this.scene.waveSystem && this.scene.waveSystem.isPreparationPhase) {
+            return; 
+        }
+
         this.scene.towers.forEach(tower => {
             if (!tower.active) return;
 
@@ -59,6 +63,23 @@ export class TowerSystem {
     handleFireTower(tower, currentTime) {
         let cd = tower.cooldown || 500;
 
+        if (tower.isSealed) {
+            if (currentTime >= tower.sealEndTime) {
+                tower.isSealed = false;
+                tower.clearTint(); 
+                
+                // 解封时，销毁封印特效，恢复自身待机特效
+                if (tower.sealEmitter) {
+                    tower.sealEmitter.destroy();
+                    tower.sealEmitter = null;
+                }
+                if (tower.emitter) tower.emitter.resume();
+
+            } else {
+                return; // 还在封印中，直接 return 罢工！什么都不做！
+            }
+        }
+
         if (currentTime > tower.nextFire) {
             let target = getEnemyInRange(tower, this.scene.enemies.getChildren());
             if (target) {
@@ -72,6 +93,24 @@ export class TowerSystem {
     }
 
     handleGoldTower(tower, currentTime) {
+
+        if (tower.isSealed) {
+            if (currentTime >= tower.sealEndTime) {
+                tower.isSealed = false;
+                tower.clearTint(); 
+                
+                // 解封时，销毁封印特效，恢复自身待机特效
+                if (tower.sealEmitter) {
+                    tower.sealEmitter.destroy();
+                    tower.sealEmitter = null;
+                }
+                if (tower.emitter) tower.emitter.resume();
+                
+            } else {
+                return; // 还在封印中，直接 return 罢工！什么都不做！
+            }
+        }
+
         if (currentTime > tower.nextGoldTime) {
             // if gold tower is in earth tower range, increase the gold production amount.
             // Earth -> Gold
@@ -107,11 +146,28 @@ export class TowerSystem {
                 if (coinBurst) coinBurst.destroy();
             });
 
-            tower.nextGoldTime += 2000;
+            tower.nextGoldTime = currentTime + 2000;
         }
     }
 
     handleWaterTower(tower, currentTime) {
+
+        if (tower.isSealed) {
+            if (currentTime >= tower.sealEndTime) {
+                tower.isSealed = false;
+                tower.clearTint(); // 封印结束，恢复原有颜色
+                // 解封时，销毁封印特效，恢复自身待机特效
+                if (tower.sealEmitter) {
+                    tower.sealEmitter.destroy();
+                    tower.sealEmitter = null;
+                }
+                if (tower.emitter) tower.emitter.resume();
+
+            } else {
+                return; // 还在封印中，直接 return 罢工！什么都不做！
+            }
+        }
+
         if (currentTime > tower.nextHealTime) {
             let healAmt = tower.healAmount || 25;
             let sMax = tower.shieldMax || 50;
@@ -160,12 +216,28 @@ export class TowerSystem {
                     targetTower.lastShieldTime = currentTime;
                 }
             });
-            tower.nextHealTime += 1000;
+            tower.nextHealTime = currentTime + 1000;
         }
     }
 
     handleWoodTower(tower, currentTime) {
         let cd = tower.cooldown || 800;
+
+        if (tower.isSealed) {
+            if (currentTime >= tower.sealEndTime) {
+                tower.isSealed = false;
+                tower.clearTint(); // 封印结束，恢复原有颜色
+                // 解封时，销毁封印特效，恢复自身待机特效
+                if (tower.sealEmitter) {
+                    tower.sealEmitter.destroy();
+                    tower.sealEmitter = null;
+                }
+                if (tower.emitter) tower.emitter.resume();
+
+            } else {
+                return; // 还在封印中，直接 return 罢工！什么都不做！
+            }
+        }
 
         // Wood tower attack frequency is slower (e.g., 800ms)
         if (currentTime > tower.nextFire) {
@@ -194,11 +266,39 @@ export class TowerSystem {
         let stunDur = tower.stunDuration || 1000;
         let baseCd = tower.baseCooldown || 5000;
 
+        if (tower.isSealed) {
+            if (currentTime >= tower.sealEndTime) {
+                tower.isSealed = false;
+                tower.clearTint(); // 封印结束，恢复原有颜色
+                // 解封时，销毁封印特效，恢复自身待机特效
+                if (tower.sealEmitter) {
+                    tower.sealEmitter.destroy();
+                    tower.sealEmitter = null;
+                }
+                if (tower.emitter) tower.emitter.resume();
+
+            } else {
+                return; // 还在封印中，直接 return 罢工！什么都不做！
+            }
+        }
+
         // Earth tower: triggers earthquake every 3 seconds, stuns all nearby enemies
         if (currentTime > tower.nextFire) {
             let hitAny = false;
             
             this.scene.enemies.getChildren().forEach(enemy => {
+                // boss二阶段免疫眩晕
+                if (enemy.currentImmunity === 'earth') {
+                    if (enemy.active && this.isInRange(tower, enemy, tower.range)) {
+                        // 如果 Boss 走进了土塔范围，但免疫眩晕，每秒只飘一次 IMMUNE 字样，防止满屏都是字
+                        if (currentTime > (enemy.lastEarthImmuneText || 0)) {
+                            this.showFloatingText(enemy.x, enemy.y, 'IMMUNE', '#cccccc');
+                            enemy.lastEarthImmuneText = currentTime + 1000;
+                        }
+                    }
+                    return; // 跳过后续的眩晕挂载
+                }
+
                 if (enemy.active && this.isInRange(tower, enemy, tower.range)) {
                     hitAny = true;
                     // Apply stun status
@@ -297,6 +397,9 @@ export class TowerSystem {
                     
                     if (enemy.hp <= 0) {
                         enemy.destroy();
+
+                        if (enemy.shieldEmitter) enemy.shieldEmitter.destroy();
+
                         this.scene.playerMoney += 10;
                         this.scene.events.emit('updateMoney', this.scene.playerMoney);
                     } else {

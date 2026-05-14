@@ -19,13 +19,15 @@ export class WaveSystem {
         this.currentWaveSpawningComplete = false;
         this.waitingForEnemyDefeat = false;
         this.activeSpawners = [];
+
+        this.isPreparationPhase = true;
         
-        // Set the countdown timer for the first wave
-        this.nextWaveStartTime = this.scene.timeSystem.time + this.currentLevelData.waves[0].startDelay;
-        console.log("WaveSystem 已啟動");
+        // 把下一次出怪时间设为无限大 (Infinity)，打破原来的自动倒计时！
+        this.nextWaveStartTime = Infinity;
+        console.log("WaveSystem started, waiting for player to start the first wave...");
 
         // update the wave text in the UI
-        this.scene.events.emit('updateWave', this.currentWaveIndex + 1, this.currentLevelData.waves.length);
+        this.scene.events.emit('updateWave', 0, this.currentLevelData.waves.length);
     }
 
     // Call this method every frame in the GameScene's update method
@@ -34,6 +36,8 @@ export class WaveSystem {
         if (this.scene.isGameOver || this.scene.isLevelWon) return;
 
         if (this.currentWaveIndex < this.currentLevelData.waves.length) {
+            if (this.isPreparationPhase) return;
+
             let currentWaveConfig = this.currentLevelData.waves[this.currentWaveIndex];
 
             // ================= Stage 1: wait for the next stage =================
@@ -117,6 +121,18 @@ export class WaveSystem {
         if (this.scene.isGameOver || this.scene.isLevelWon) return;
 
         let currentTime = this.scene.timeSystem.time;
+
+        if (this.isPreparationPhase) {
+            console.log("player forced to start the first wave early!");
+            this.isPreparationPhase = false; // 解除准备状态
+            this.nextWaveStartTime = currentTime; // 立刻开始倒计时判定出怪
+
+            // UI 更新为 1 / Max
+            this.scene.events.emit('updateWave', 1, this.currentLevelData.waves.length);
+            
+            return; // 第一次点击通常不给 20$ 奖励，直接 return 即可
+        }
+
         let isWaitingForStart = (this.activeSpawners.length === 0 && !this.currentWaveSpawningComplete && !this.waitingForEnemyDefeat);
 
         if (isWaitingForStart) {

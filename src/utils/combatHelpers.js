@@ -74,7 +74,15 @@ export function hitEnemy(bullet, enemy) {
     enemy.hp -= damage; 
     
     enemy.setTint(0xffffff);
-    enemy.scene.time.delayedCall(100, () => { if(enemy.active) enemy.clearTint(); });
+    enemy.scene.time.delayedCall(100, () => { 
+        if(enemy.active) {
+            if (enemy.isPhase2) {
+                enemy.setTint(0xff0000);
+            } else {
+                enemy.clearTint();
+            } 
+        }
+    });
 
     if (enemy.hp <= 0) {
         // Play bounty text effect (use enemy.scene to get current scene directly)
@@ -91,6 +99,8 @@ export function hitEnemy(bullet, enemy) {
         }
 
         enemy.destroy(); 
+
+        if (enemy.shieldEmitter) enemy.shieldEmitter.destroy();
         
         // [Key]: Enemy is dead, return true
         return true; 
