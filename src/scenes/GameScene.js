@@ -888,7 +888,7 @@ export class GameScene extends Phaser.Scene {
 
         // 4. 封印塔机制 (每 10 秒触发)
         if (currentTime >= boss.nextSealTime) {
-            let sealCount = boss.isPhase2 ? 2 : 1; // P2 封两座，P1 封一座
+            let sealCount = boss.isPhase2 ? 5 : 2; // P2 封五座，P1 封两座
             this.sealRandomTowers(sealCount, currentTime);
             boss.nextSealTime = currentTime + 10000; // 重置冷却
         }
@@ -897,7 +897,12 @@ export class GameScene extends Phaser.Scene {
     // 封印地图上的随机防御塔
     sealRandomTowers(count, currentTime) {
         let activeTowers = this.towers.filter(t => t.active && !t.isSealed); // 找出还没被封印的存活塔
+        
         if (activeTowers.length === 0) return;
+
+        if (count > activeTowers.length) {
+            count = activeTowers.length; // 如果要求封印的数量超过了剩余的塔，就只封印剩下的全部
+        }
 
         // 随机打乱塔的数组并抽取
         Phaser.Utils.Array.Shuffle(activeTowers);
@@ -905,7 +910,7 @@ export class GameScene extends Phaser.Scene {
 
         targets.forEach(tower => {
             tower.isSealed = true;
-            tower.sealEndTime = currentTime + 10000; // 封印 10 秒
+            tower.sealEndTime = currentTime + 20000; // 封印 20 秒
             tower.setTint(0x555555); // 塔变灰暗，表示被封印
             
             let sealText = this.add.text(tower.x, tower.y - 20, 'SEALED!', { fill: '#a832a8', fontStyle: 'bold' }).setOrigin(0.5);
